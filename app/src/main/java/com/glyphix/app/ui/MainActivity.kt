@@ -853,6 +853,7 @@ internal fun GlyphixApp(
                         LeaderboardScreen(
                             entries = leaderboardEntries,
                             onDismiss = { viewModel.navigateBack() },
+                            onRefresh = { viewModel.updateLeaderboard() },
                             showTopBar = false,
                             modifier = Modifier.padding(paddingValues = pagePadding)
                         )

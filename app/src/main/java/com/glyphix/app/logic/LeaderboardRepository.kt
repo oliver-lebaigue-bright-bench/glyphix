@@ -19,14 +19,26 @@ class LeaderboardRepository {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 try {
-                    val entries = snapshot.children.mapNotNull { 
+                    val entries = snapshot.children.mapNotNull { child ->
                         try {
-                            it.getValue(LeaderboardEntry::class.java)
+                            val direct = child.getValue(LeaderboardEntry::class.java)
+                            if (direct != null && direct.totalTimeMs > 0) {
+                                direct
+                            } else {
+                                val uid = child.key ?: child.child("userId").getValue(String::class.java) ?: ""
+                                val name = child.child("name").getValue(String::class.java) ?: "Anonymous"
+                                val pic = child.child("profilePictureUrl").getValue(String::class.java)
+                                val time = (child.child("totalTimeMs").value as? Number)?.toLong() ?: 0L
+                                if (time > 0 && uid.isNotBlank()) {
+                                    LeaderboardEntry(userId = uid, name = name, profilePictureUrl = pic, totalTimeMs = time)
+                                } else direct
+                            }
                         } catch (e: Exception) {
-                            Log.e("LeaderboardRepo", "Error parsing leaderboard entry", e)
+                            Log.e("LeaderboardRepo", "Error parsing entry ${child.key}", e)
                             null
                         }
-                    }.reversed() // orderByChild is ascending
+                    }.filter { it.totalTimeMs > 0 }.sortedByDescending { it.totalTimeMs }
+
                     trySend(entries)
                 } catch (e: Exception) {
                     Log.e("LeaderboardRepo", "Error processing leaderboard snapshot", e)
@@ -36,14 +48,14 @@ class LeaderboardRepository {
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("LeaderboardRepo", "onCancelled: ${error.message}")
-                close()
+                trySend(emptyList())
             }
         }
         try {
             query.addValueEventListener(listener)
         } catch (e: Exception) {
             Log.e("LeaderboardRepo", "Failed to add leaderboard listener", e)
-            close()
+            trySend(emptyList())
         }
         awaitClose { 
             try {
@@ -55,13 +67,13 @@ class LeaderboardRepository {
     }
 
     suspend fun updateScore(entry: LeaderboardEntry) {
+        if (entry.userId.isBlank()) return
         try {
             Log.d("LeaderboardRepo", "Updating score for user: ${entry.userId}")
             database.child(entry.userId).setValue(entry).await()
             Log.d("LeaderboardRepo", "Score updated successfully")
         } catch (e: Exception) {
             Log.e("LeaderboardRepo", "Failed to update score for user: ${entry.userId}", e)
-            throw e
         }
     }
 }

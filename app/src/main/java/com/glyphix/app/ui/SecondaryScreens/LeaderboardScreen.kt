@@ -44,6 +44,7 @@ import kotlin.random.Random
 internal fun LeaderboardScreen(
     entries: List<LeaderboardEntry>,
     onDismiss: () -> Unit,
+    onRefresh: () -> Unit = {},
     showTopBar: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -92,57 +93,99 @@ internal fun LeaderboardScreen(
                 ) {
                     GlyphixBackButton(onClick = onDismiss)
                     Spacer(modifier = Modifier.width(16.dp))
-                    ScreenTitle(text = "Leaderboard", modifier = Modifier.padding(bottom = 0.dp))
+                    ScreenTitle(text = "Leaderboard", modifier = Modifier.weight(1f).padding(bottom = 0.dp))
+                    IconButton(onClick = { onRefresh() }) {
+                        Icon(
+                            imageVector = FontAwesomeIcons.Solid.Sync,
+                            contentDescription = "Refresh",
+                            tint = GlyphGreen,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
-            if (entries.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
+                item {
+                    var podiumVisible by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) { podiumVisible = true }
+                    
+                    AnimatedVisibility(
+                        visible = podiumVisible,
+                        enter = expandVertically(tween(600, easing = EaseOutBack)) + fadeIn()
+                    ) {
+                        PodiumHeader(
+                            entries = entries.take(3),
+                            onImageClick = { selectedImageUrl = it }
+                        )
+                    }
                 }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
+
+                if (entries.isEmpty()) {
                     item {
-                        var podiumVisible by remember { mutableStateOf(false) }
-                        LaunchedEffect(Unit) { podiumVisible = true }
-                        
-                        AnimatedVisibility(
-                            visible = podiumVisible,
-                            enter = expandVertically(tween(600, easing = EaseOutBack)) + fadeIn()
+                        ExpressiveCard(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, GlyphGreen.copy(alpha = 0.2f)),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            PodiumHeader(
-                                entries = entries.take(3),
-                                onImageClick = { selectedImageUrl = it }
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = FontAwesomeIcons.Solid.Trophy,
+                                    contentDescription = null,
+                                    tint = GlyphGreen,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Text(
+                                    text = "Ready for the Community?",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = "Start the visualizer and play music to record your visualization time and climb the ranks!",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
-
+                } else {
                     item {
                         Text(
                             text = "Community ranking",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = GlyphGreen,
                             modifier = Modifier.padding(start = 24.dp, top = 8.dp, bottom = 4.dp)
                         )
                     }
 
-                    itemsIndexed(entries.drop(3)) { index, entry ->
-                        var isVisible by remember { mutableStateOf(false) }
-                        LaunchedEffect(Unit) {
-                            isVisible = true
-                        }
+                    if (entries.size > 3) {
+                        itemsIndexed(entries.drop(3)) { index, entry ->
+                            var isVisible by remember { mutableStateOf(false) }
+                            LaunchedEffect(Unit) {
+                                isVisible = true
+                            }
 
-                        AnimatedVisibility(
-                            visible = isVisible,
-                            enter = fadeIn(tween(400, delayMillis = index * 50)) +
-                                    slideInVertically(tween(400, delayMillis = index * 50)) { it / 2 }
-                        ) {
-                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                LeaderboardItem(index + 4, entry) {
-                                    selectedImageUrl = entry.profilePictureUrl
+                            AnimatedVisibility(
+                                visible = isVisible,
+                                enter = fadeIn(tween(400, delayMillis = index * 50)) +
+                                        slideInVertically(tween(400, delayMillis = index * 50)) { it / 2 }
+                            ) {
+                                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                    LeaderboardItem(index + 4, entry) {
+                                        selectedImageUrl = entry.profilePictureUrl
+                                    }
                                 }
                             }
                         }
@@ -258,7 +301,7 @@ private fun PodiumHeader(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Bottom
         ) {
-            // Rank 2
+            // Rank 2 (Left)
             if (entries.size >= 2) {
                 PodiumItem(
                     entry = entries[1],
@@ -266,9 +309,14 @@ private fun PodiumHeader(
                     modifier = Modifier.weight(1f),
                     onImageClick = onImageClick
                 )
+            } else {
+                PodiumPlaceholderItem(
+                    rank = 2,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            // Rank 1
+            // Rank 1 (Center)
             if (entries.isNotEmpty()) {
                 PodiumItem(
                     entry = entries[0],
@@ -276,9 +324,14 @@ private fun PodiumHeader(
                     modifier = Modifier.weight(1.2f),
                     onImageClick = onImageClick
                 )
+            } else {
+                PodiumPlaceholderItem(
+                    rank = 1,
+                    modifier = Modifier.weight(1.2f)
+                )
             }
 
-            // Rank 3
+            // Rank 3 (Right)
             if (entries.size >= 3) {
                 PodiumItem(
                     entry = entries[2],
@@ -286,8 +339,81 @@ private fun PodiumHeader(
                     modifier = Modifier.weight(1f),
                     onImageClick = onImageClick
                 )
+            } else {
+                PodiumPlaceholderItem(
+                    rank = 3,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun PodiumPlaceholderItem(
+    rank: Int,
+    modifier: Modifier = Modifier
+) {
+    val rankColor = when (rank) {
+        1 -> Color(0xFFFFD700)
+        2 -> Color(0xFFC0C0C0)
+        else -> Color(0xFFCD7F32)
+    }
+    val avatarSize = if (rank == 1) 88.dp else 68.dp
+
+    Column(
+        modifier = modifier.padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(contentAlignment = Alignment.BottomCenter) {
+            Box(
+                modifier = Modifier
+                    .size(avatarSize)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.04f))
+                    .border(BorderStroke(1.dp, rankColor.copy(alpha = 0.25f)), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = FontAwesomeIcons.Solid.User,
+                    contentDescription = null,
+                    tint = rankColor.copy(alpha = 0.3f),
+                    modifier = Modifier.size(avatarSize / 2)
+                )
+            }
+
+            Surface(
+                modifier = Modifier.offset(y = 12.dp),
+                shape = CircleShape,
+                color = rankColor.copy(alpha = 0.6f),
+                shadowElevation = 2.dp
+            ) {
+                Text(
+                    text = "#$rank",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Open Spot",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+            maxLines = 1,
+            textAlign = TextAlign.Center
+        )
+
+        Text(
+            text = "--",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+        )
     }
 }
 

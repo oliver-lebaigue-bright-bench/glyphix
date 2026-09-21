@@ -25,21 +25,22 @@ public final class DeviceProfile {
         if (android.os.Build.VERSION.SDK_INT < 31) {
             return DEVICE_UNKNOWN;
         }
-        if (Common.is20111()) {
+        String model = android.os.Build.MODEL != null ? android.os.Build.MODEL.toUpperCase(java.util.Locale.US) : "";
+        if (Common.is20111() || model.contains("A063") || model.contains("20111") || model.contains("PHONE 1") || model.contains("PHONE (1)")) {
             return DEVICE_NP1;
-        } else if (Common.is22111()) {
+        } else if (Common.is22111() || model.contains("A065") || model.contains("AIN065") || model.contains("22111") || model.contains("PHONE 2") || model.contains("PHONE (2)")) {
             return DEVICE_NP2;
-        } else if (Common.is23111() || Common.is23113()) {
+        } else if (Common.is23111() || Common.is23113() || model.contains("A142") || model.contains("23111") || model.contains("23113") || model.contains("PHONE 2A") || model.contains("PHONE (2A)")) {
             return DEVICE_NP2A;
-        } else if (Common.is24111()) {
-            return DEVICE_NP3A;
-        }  else if (Common.is25111()) {
-            return DEVICE_NP4A;
-        }  else if (Common.is25111p()){
+        } else if (Common.is25111p() || model.contains("A059P") || model.contains("A069P") || model.contains("24111P") || model.contains("25111P") || model.contains("3A PRO") || model.contains("3A_PRO") || model.contains("3A PLUS") || model.contains("3A+") || model.contains("4A PRO") || model.contains("4A_PRO")) {
             return DEVICE_NP4APRO;
-        } else if (Common.is23112()) {
+        } else if (Common.is24111() || model.contains("A059") || model.contains("24111") || model.contains("PHONE 3A") || model.contains("PHONE (3A)")) {
+            return DEVICE_NP3A;
+        } else if (Common.is25111() || model.contains("A069") || model.contains("25111") || model.contains("PHONE 4A") || model.contains("PHONE (4A)")) {
+            return DEVICE_NP4A;
+        } else if (Common.is23112() || model.contains("A024") || model.contains("23112") || model.contains("PHONE 3") || model.contains("PHONE (3)")) {
             return DEVICE_NP3;
-        } else if (android.os.Build.MODEL.contains("26111") || android.os.Build.MODEL.toLowerCase().contains("phone 4b")) {
+        } else if (model.contains("26111") || model.contains("PHONE 4B") || model.contains("PHONE (4B)")) {
             return DEVICE_NP4B;
         } else {
             return DEVICE_UNKNOWN;
@@ -51,9 +52,9 @@ public final class DeviceProfile {
             case DEVICE_NP1 -> "Phone (1)";
             case DEVICE_NP2 -> "Phone (2)";
             case DEVICE_NP2A -> "Phone (2a) / 2a+";
-            case DEVICE_NP3A -> "Phone (3a) / 3a Pro";
+            case DEVICE_NP3A -> "Phone (3a)";
+            case DEVICE_NP4APRO -> "Phone (3a) Pro";
             case DEVICE_NP4A -> "Phone (4a)";
-            case DEVICE_NP4APRO -> "phone (4a) pro";
             case DEVICE_NP3 -> "Phone (3)";
             case DEVICE_NP4B -> "Phone (4b)";
             default -> "Unknown";

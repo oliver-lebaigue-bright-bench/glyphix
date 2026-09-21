@@ -79,7 +79,7 @@ fun ProfileScreen(
     val weeklyDisplay = if (weeklyHours > 0) "${weeklyHours}h ${weeklyMins}m" else "${weeklyMins}m"
 
     val userRank = leaderboardEntries.indexOfFirst { it.userId == currentUserId }.takeIf { it >= 0 }?.let { it + 1 }
-    val rankDisplay = if (userRank != null) "#$userRank" else "#3"
+    val rankDisplay = if (userRank != null) "#$userRank" else if (totalTimeMs > 0 && leaderboardEntries.isNotEmpty()) "Unranked" else "--"
 
     val displayName = userProfile?.displayName?.takeIf { it.isNotBlank() } ?: "Anonymous"
     val userRole = if (isAnonymous) "Visualizer enthusiast (Guest)" else "Visualizer enthusiast"

@@ -677,8 +677,9 @@ internal fun SettingsScreen(
                         "Phone (2a)" to DeviceProfile.DEVICE_NP2A,
                         "Phone (3)" to DeviceProfile.DEVICE_NP3,
                         "Phone (3a)" to DeviceProfile.DEVICE_NP3A,
-                        "Phone (4)" to DeviceProfile.DEVICE_NP4A,
-                        "Phone (4 Pro)" to DeviceProfile.DEVICE_NP4APRO
+                        "Phone (3a Pro)" to DeviceProfile.DEVICE_NP4APRO,
+                        "Phone (4a)" to DeviceProfile.DEVICE_NP4A,
+                        "Phone (4b)" to DeviceProfile.DEVICE_NP4B
                     )
 
                     @OptIn(ExperimentalLayoutApi::class)

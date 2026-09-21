@@ -47,7 +47,8 @@ internal fun CommunityOverlays(
             GlyphixBackground()
             LeaderboardScreen(
                 entries = entries,
-                onDismiss = { viewModel.hideLeaderboard() }
+                onDismiss = { viewModel.hideLeaderboard() },
+                onRefresh = { viewModel.updateLeaderboard() }
             )
         }
     }

@@ -1438,12 +1438,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateLeaderboard() {
         val uid = _userId.value ?: return
-        if (_isAnonymous.value) return 
+        val updatedTime = _totalVisualizedTime.value
+        if (updatedTime <= 0) return
 
         viewModelScope.launch {
             try {
-                val currentProfile = _userProfile.value ?: return@launch
-                val updatedTime = _totalVisualizedTime.value
+                val currentProfile = _userProfile.value ?: UserProfile(
+                    userId = uid,
+                    displayName = _userNickname.value,
+                    totalVisualizedTime = updatedTime,
+                    createdAt = System.currentTimeMillis()
+                )
                 
                 // Update User Profile as well so it's persistent
                 val updatedProfile = currentProfile.copy(totalVisualizedTime = updatedTime)
@@ -1774,6 +1779,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Time tracking & Global Stats Syncing
         viewModelScope.launch {
             val prefs = ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
+            var lastLeaderboardSyncMs = 0L
             
             while (true) {
                 delay(500)
@@ -1810,8 +1816,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     _weeklyUsageMs.value = weekSum
 
-                    // Update leaderboard periodically if running
-                    if (SystemClock.elapsedRealtime() % 60000 < 600) {
+                    // Update leaderboard periodically (every 60s) while running
+                    val nowRealtime = SystemClock.elapsedRealtime()
+                    if (nowRealtime - lastLeaderboardSyncMs >= 60000L) {
+                        lastLeaderboardSyncMs = nowRealtime
                         updateLeaderboard()
                     }
                 } ?: run {
@@ -2635,8 +2643,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             DeviceProfile.DEVICE_NP2 -> "Nothing Phone (2)"
             DeviceProfile.DEVICE_NP2A -> "Nothing Phone (2a)"
             DeviceProfile.DEVICE_NP3A -> "Nothing Phone (3a)"
+            DeviceProfile.DEVICE_NP4APRO -> "Nothing Phone (3a) Pro"
             DeviceProfile.DEVICE_NP4A -> "Nothing Phone (4a)"
-            DeviceProfile.DEVICE_NP4APRO -> "Nothing Phone (4a) Pro"
             DeviceProfile.DEVICE_NP3 -> "Nothing Phone (3)"
             DeviceProfile.DEVICE_NP4B -> "Nothing Phone (4b)"
             else -> "Unknown Device"

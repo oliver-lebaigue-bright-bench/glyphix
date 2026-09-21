@@ -50,26 +50,33 @@ fun StatsScreen(
     val hapticTime by viewModel.totalHapticTime.collectAsStateWithLifecycle()
     val globalStats by viewModel.globalStats.collectAsStateWithLifecycle()
 
+    val todayUsageMs by viewModel.todayUsageMs.collectAsStateWithLifecycle()
+    val weeklyUsageMs by viewModel.weeklyUsageMs.collectAsStateWithLifecycle()
+    val flashlightTime by viewModel.totalFlashlightTime.collectAsStateWithLifecycle()
+
+    fun formatDurationCompact(ms: Long): String {
+        val hours = ms / (1000 * 60 * 60)
+        val mins = (ms / (1000 * 60)) % 60
+        val secs = (ms / 1000) % 60
+        return when {
+            hours > 0 -> "${hours}h ${mins}m"
+            mins > 0 -> "${mins}m ${secs}s"
+            secs > 0 -> "${secs}s"
+            else -> "0s"
+        }
+    }
+
     // Formatted real time calculations
-    val totalHours = totalTime / (1000 * 60 * 60)
-    val totalMins = (totalTime / (1000 * 60)) % 60
-    val totalDisplay = "${totalHours}h ${totalMins}m"
+    val totalDisplay = formatDurationCompact(totalTime)
+    val glyphDisplay = formatDurationCompact(glyphTime)
+    val hapticDisplay = formatDurationCompact(hapticTime)
+    val idleDisplay = formatDurationCompact(idleTime)
+    val flashlightDisplay = formatDurationCompact(flashlightTime)
+    val todayDisplay = formatDurationCompact(todayUsageMs)
 
-    val totalActiveAndIdle = (activeTime + idleTime).coerceAtLeast(1L)
-    val activePercent = if (activeTime > 0) (activeTime * 100 / totalActiveAndIdle).toInt() else 0
-    val idlePercent = if (idleTime > 0) 100 - activePercent else 0
-
-    val glyphHours = glyphTime / (1000 * 60 * 60)
-    val glyphMins = (glyphTime / (1000 * 60)) % 60
-    val glyphDisplay = "${glyphHours}h ${glyphMins}m"
-
-    val hapticHours = hapticTime / (1000 * 60 * 60)
-    val hapticMins = (hapticTime / (1000 * 60)) % 60
-    val hapticDisplay = "${hapticHours}h ${hapticMins}m"
-
-    val idleHours = idleTime / (1000 * 60 * 60)
-    val idleMins = (idleTime / (1000 * 60)) % 60
-    val idleDisplay = "${idleHours}h ${idleMins}m"
+    val totalActiveAndIdle = activeTime + idleTime
+    val activePercent = if (totalActiveAndIdle > 0) ((activeTime * 100f) / totalActiveAndIdle).toInt().coerceIn(0, 100) else 0
+    val idlePercent = if (totalActiveAndIdle > 0) (100 - activePercent).coerceIn(0, 100) else 0
 
     Box(
         modifier = modifier
@@ -227,8 +234,10 @@ fun StatsScreen(
                 Spacer(Modifier.height(16.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    BreakdownRow(label = "Today's usage", value = todayDisplay)
                     BreakdownRow(label = "Glyph interface", value = glyphDisplay)
                     BreakdownRow(label = "Haptic feedback", value = hapticDisplay)
+                    BreakdownRow(label = "Torch pulse", value = flashlightDisplay)
                     BreakdownRow(label = "Idle pulse", value = idleDisplay)
                 }
             }
@@ -251,10 +260,10 @@ fun StatsScreen(
                     
                     BreakdownRow(
                         label = "Total visualization", 
-                        value = if (globalHours > 0) "${globalHours}h ${globalMins}m" else "${globalMins}m"
+                        value = if (globalHours > 0) "${globalHours}h ${globalMins}m" else if (globalMins > 0) "${globalMins}m" else "--"
                     )
-                    BreakdownRow(label = "Active users", value = "${globalStats.userCount}")
-                    BreakdownRow(label = "Total sessions", value = "${globalStats.totalSessions}")
+                    BreakdownRow(label = "Community members", value = if (globalStats.userCount > 0) "${globalStats.userCount}" else "--")
+                    BreakdownRow(label = "Total sessions", value = if (globalStats.totalSessions > 0) "${globalStats.totalSessions}" else "--")
                 }
             }
 

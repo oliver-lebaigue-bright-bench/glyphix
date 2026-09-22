@@ -1,0 +1,61 @@
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform'
+    id 'com.android.kotlin.multiplatform.library'
+    id 'org.jetbrains.compose'
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+kotlin {
+    androidLibrary {
+        namespace = "com.glyphix.app.compose"
+        compileSdk = 37
+        minSdk = 26
+        
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+    
+    jvm("desktop")
+    
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            implementation(compose.ui)
+            implementation(compose.components.resources)
+            implementation(compose.components.uiToolingPreview)
+            implementation(compose.materialIconsExtended)
+            implementation(project(":shared"))
+            
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+            implementation("androidx.lifecycle:lifecycle-viewmodel:2.11.0")
+            implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+            implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+            
+            implementation("io.coil-kt.coil3:coil-compose:3.5.0")
+            implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
+            implementation("br.com.devsrsouza.compose.icons:font-awesome:1.1.1")
+        }
+        androidMain.dependencies {
+            implementation(compose.preview)
+            implementation("androidx.activity:activity-compose:1.13.0")
+        }
+        desktopMain.dependencies {
+            implementation(compose.desktop.currentOs)
+        }
+    }
+}
+
+compose.desktop {
+    application {
+        mainClass = "MainKt"
+
+        nativeDistributions {
+            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg, org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi, org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb)
+            packageName = "Glyphix"
+            packageVersion = "1.0.0"
+        }
+    }
+}

@@ -7,3 +7,6 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Glyphix"
 include ':app'
+include ':shared'
+include ':composeApp'
+include ':androidApp'

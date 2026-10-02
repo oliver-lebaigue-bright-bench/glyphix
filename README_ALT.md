@@ -1,7 +1,11 @@
 <div align="center">
 
-<!-- Typing intro -->
-<img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=500&size=26&pause=1000&color=D5FC2D&center=true&vCenter=true&width=480&lines=Real-Time+Music+Visualizer.;Nothing+Phone+Glyph+Sync.;Desktop+Companion+%2B+OpenRGB." alt="Typing SVG" />
+<!-- Header Banner & Typing Intro -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=D5FC2D&height=180&section=header&text=GLYPHIX&fontSize=60&fontColor=1a1a1a&animation=fadeIn&fontAlignY=38" width="100%" alt="Glyphix Banner" />
+
+<br/>
+
+<img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=500&size=26&pause=1000&color=D5FC2D&center=true&vCenter=true&width=550&lines=Real-Time+Music+Visualizer.;Nothing+Phone+Glyph+Sync.;Desktop+Companion+%2B+OpenRGB." alt="Typing SVG" />
 
 <br/><br/>
 
@@ -10,14 +14,17 @@
 <br/><br/>
 
 <!-- Action Badges -->
-<a href="https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases"><img src="https://img.shields.io/badge/Download-Latest_APK-D5FC2D?style=for-the-badge&logo=android&logoColor=black" alt="Download APK" height="35" /></a>
-<a href="https://discord.gg/cQ4hxNE8fX"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" height="35" /></a>
-<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-888888?style=for-the-badge&logo=github&logoColor=white" alt="License" height="35" /></a>
+<a href="https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases"><img src="https://img.shields.io/badge/Download-Latest_APK-D5FC2D?style=for-the-badge&logo=android&logoColor=black" alt="Download APK" height="38" /></a>
+<a href="https://discord.gg/cQ4hxNE8fX"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" height="38" /></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-888888?style=for-the-badge&logo=github&logoColor=white" alt="License" height="38" /></a>
 
 <br/><br/>
 
+<!-- Live Dynamic Stats Badges -->
 [![Downloads](https://img.shields.io/github/downloads/oliver-lebaigue-bright-bench/glyph-syncronator/total?style=flat-square&logo=github&logoColor=white&label=Downloads&color=D5FC2D&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases)
 [![Stars](https://img.shields.io/github/stars/oliver-lebaigue-bright-bench/glyph-syncronator?style=flat-square&logo=github&logoColor=white&label=Stars&color=ffffff&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/stargazers)
+[![Forks](https://img.shields.io/github/forks/oliver-lebaigue-bright-bench/glyph-syncronator?style=flat-square&logo=github&logoColor=white&label=Forks&color=D5FC2D&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/network/members)
+[![Issues](https://img.shields.io/github/issues/oliver-lebaigue-bright-bench/glyph-syncronator?style=flat-square&logo=github&logoColor=white&label=Issues&color=ffffff&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/issues)
 [![Nothing Phone](https://img.shields.io/badge/Nothing_Phone-1_·_2_·_2a_·_3_·_4-D5FC2D?style=flat-square&labelColor=1a1a1a)](#-supported-devices)
 
 <sub>Read in: [हिन्दी](Docs/README_HI.md) · [मराठी](Docs/README_MR.md) · [Türkçe](Docs/README_TR.md) · [العربية](Docs/README_AR.md)</sub>
@@ -42,6 +49,21 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 | **Frame Rate** | 20 FPS | **60 FPS** |
 | **Precision** | Low / Unreliable | **FFT-Based & Deterministic** |
 | **Control** | Full glyph strips | **Independent zone mapping** |
+
+---
+
+### 📊 Repository Insights & Analytics
+
+<div align="center">
+
+<a href="https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator">
+  <img height="165" src="https://github-readme-stats.vercel.app/api/pin/?username=oliver-lebaigue-bright-bench&repo=glyph-syncronator&bg_color=1a1a1a&title_color=D5FC2D&text_color=ffffff&icon_color=D5FC2D&border_color=333333&show_owner=true" alt="Repo Card" />
+</a>
+<a href="https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator">
+  <img height="165" src="https://github-readme-stats.vercel.app/api/top-langs/?username=oliver-lebaigue-bright-bench&repo=glyph-syncronator&layout=compact&bg_color=1a1a1a&title_color=D5FC2D&text_color=ffffff&border_color=333333&hide=html,css" alt="Top Languages" />
+</a>
+
+</div>
 
 ---
 
@@ -126,58 +148,6 @@ Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mappi
 ---
 
 ### 👥 Core Contributors
-
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/oliver-lebaigue-bright-bench">
-        <img src="https://github.com/oliver-lebaigue-bright-bench.png?size=80&mask=circle" width="80" alt="Oliver Lebaigue" />
-        <br/><b>Oliver Lebaigue</b>
-        <br/><small>Founder & Lead Dev</small>
-      </a>
-    </td>
-        <td align="center">
-      <a href="https://github.com/rKyzen">
-        <img src="https://github.com/rKyzen.png?size=80&mask=circle" width="80" alt="rKyzen" />
-        <br/><b>rKyzen</b>
-        <br/><small> Core Dev & Base App Maker</small>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/m-uvex">
-        <img src="https://github.com/m-uvex.png?size=80&mask=circle" width="80" alt="m_uvex" />
-        <br/><b>m_uvex</b>
-        <br/><small>Web Dev</small>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/gabibrawl">
-        <img src="https://github.com/gabibrawl.png?size=80&mask=circle" width="80" alt="GabiBrawl" />
-        <br/><b>GabiBrawl</b>
-        <br/><small>Core Dev</small>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/p-1749">
-        <img src="https://github.com/p-1749.png?size=80&mask=circle" width="80" alt="P.1749" />
-        <br/><b>P.1749</b>
-        <br/><small>Core Dev</small>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/hrenpoymikto">
-        <img src="https://github.com/hrenpoymikto.png?size=80&mask=circle" width="80" alt="hrenpoymikto" />
-        <br/><b>hrenpoymikto</b>
-        <br/><small>Core Dev &amp; Social Media</small>
-      </a>
-    </td>
-    <td align="center">
-      <img src="https://github.com/ghost.png?size=80&mask=circle" width="80" alt="Logan Hills" />
-      <br/><b>Logan Hills</b>
-      <br/><small>Social Media Team</small>
-    </td>
-  </tr>
-</table>
 
 ---
 

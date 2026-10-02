@@ -1,15 +1,39 @@
 <div align="center">
 
-# ⚡ GLYPHIX ⚡
+<!-- ─── APP ICON HERO BANNER ─── -->
+<svg viewBox="0 0 160 160" width="120" height="120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Glyphix Logo">
+  <!-- Background -->
+  <rect width="160" height="160" rx="36" fill="#000000"/>
+  
+  <g transform="translate(26, 26) scale(1)">
+    <!-- Bowl / Lower Semicircle Glyph -->
+    <path fill="#D5FC2D" d="M33.5,57.0 H74.5 C74.5,68.3 65.3,77.5 54.0,77.5 C42.7,77.5 33.5,68.3 33.5,57.0 Z" />
+
+    <!-- Center Radiant Pill (Vertical) -->
+    <path fill="#D5FC2D" d="M50.5,36.0 C50.5,34.1 52.1,32.5 54.0,32.5 C55.9,32.5 57.5,34.1 57.5,36.0 V46.0 C57.5,47.9 55.9,49.5 54.0,49.5 C52.1,49.5 50.5,47.9 50.5,46.0 Z" />
+
+    <!-- Left Radiant Pill (Rotated -45 degrees) -->
+    <g transform="rotate(-45, 36.5, 42.5)">
+      <path fill="#D5FC2D" d="M33.0,37.5 C33.0,35.6 34.6,34.0 36.5,34.0 C38.4,34.0 40.0,35.6 40.0,37.5 V47.5 C40.0,49.4 38.4,51.0 36.5,51.0 C34.6,51.0 33.0,49.4 33.0,47.5 Z" />
+    </g>
+
+    <!-- Right Radiant Pill (Rotated 45 degrees) -->
+    <g transform="rotate(45, 71.5, 42.5)">
+      <path fill="#D5FC2D" d="M68.0,37.5 C68.0,35.6 69.6,34.0 71.5,34.0 C73.4,34.0 75.0,35.6 75.0,37.5 V47.5 C75.0,49.4 73.4,51.0 71.5,51.0 C69.6,51.0 68.0,49.4 68.0,47.5 Z" />
+    </g>
+  </g>
+</svg>
+
+# GLYPHIX
 ### Real-Time Music Visualizer for Nothing Phone
 
 <br>
 
-[![Downloads](https://img.shields.io/github/downloads/oliver-lebaigue-bright-bench/glyph-syncronator/total?style=flat-square&logo=github&logoColor=white&label=Downloads&color=d71920&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases)
+[![Downloads](https://img.shields.io/github/downloads/oliver-lebaigue-bright-bench/glyph-syncronator/total?style=flat-square&logo=github&logoColor=white&label=Downloads&color=D5FC2D&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases)
 [![Stars](https://img.shields.io/github/stars/oliver-lebaigue-bright-bench/glyph-syncronator?style=flat-square&logo=github&logoColor=white&label=Stars&color=ffffff&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/stargazers)
 [![License](https://img.shields.io/github/license/oliver-lebaigue-bright-bench/glyph-syncronator?style=flat-square&logo=github&logoColor=white&label=License&color=888888&labelColor=1a1a1a)](LICENSE)
 [![Discord](https://img.shields.io/discord/1509496060094054531?style=flat-square&logo=discord&logoColor=white&label=Discord&color=5865F2&labelColor=1a1a1a)](https://discord.gg/cQ4hxNE8fX)
-[![Nothing Phone](https://img.shields.io/badge/Nothing_Phone-1_·_2_·_2a_·_3_·_4-d71920?style=flat-square&labelColor=1a1a1a)](#-supported-devices)
+[![Nothing Phone](https://img.shields.io/badge/Nothing_Phone-1_·_2_·_2a_·_3_·_4-D5FC2D?style=flat-square&labelColor=1a1a1a)](#-supported-devices)
 
 <sub>Read in: [हिन्दी](Docs/README_HI.md) · [मराठी](Docs/README_MR.md) · [Türkçe](Docs/README_TR.md) · [العربية](Docs/README_AR.md)</sub>
 

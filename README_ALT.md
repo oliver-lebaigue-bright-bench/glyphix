@@ -19,6 +19,20 @@
 
 ---
 
+<br>
+
+<div align="center">
+
+| ⚡ **Precision FFT** | 🎛️ **Granular Control** | 🚀 **Smooth 60 FPS** | 🔋 **Optimized Core** |
+| :---: | :---: | :---: | :---: |
+| Real-time frequency binning per frame | Independent control of every single zone | Zero jitter, high responsiveness | Minimal footprint & RAM usage |
+
+</div>
+
+<br>
+
+---
+
 ## 🚀 What is Glyphix?
 
 **Glyphix** delivers real-time music visualization for Nothing Phone Glyphs, haptics, and flashlights. Powered by high-precision **FFT audio analysis**, it maps frequencies to individual zones for a pixel-perfect audio-visual experience at a smooth 60 FPS.
@@ -44,7 +58,7 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 2. **Select Audio Source**: Choose your preferred capture source (Media Projection recommended).
 3. **Hit Start**: Play your music and watch the lights come alive!
 
-> **Bluetooth Latency?** Head over to the **Audio** tab in the app to calibrate sync offsets. Advanced users can fine-tune frequency presets in `zones.config` (see the [Configuration Guide](Docs/ZONES_CONFIG.md)).
+> **💡 Bluetooth Latency?** Head over to the **Audio** tab in the app to calibrate sync offsets. Advanced users can fine-tune frequency presets in `zones.config` (see the [Configuration Guide](Docs/ZONES_CONFIG.md)).
 
 ---
 

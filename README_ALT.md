@@ -23,9 +23,9 @@
 
 <div align="center">
 
-| ⚡ **Precision FFT** | 🎛️ **Granular Control** | 🚀 **Smooth 60 FPS** | 🔋 **Optimized Core** |
+| ⚡ **Precision FFT** | 🎛️ **Granular Control** | 💻 **Desktop & OpenRGB** | 🔋 **Optimized Core** |
 | :---: | :---: | :---: | :---: |
-| Real-time frequency binning per frame | Independent control of every single zone | Zero jitter, high responsiveness | Minimal footprint & RAM usage |
+| Real-time frequency binning per frame | Independent control of every single zone | Stream PC audio & sync RGB hardware | Minimal footprint & RAM usage |
 
 </div>
 
@@ -62,6 +62,16 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 
 ---
 
+## 💻 Desktop Companion & OpenRGB
+
+Want to sync your setup and stream audio from your computer? Glyphix features a lightweight **Desktop Companion script** with built-in **OpenRGB support**!
+
+* **Platforms**: Fully supported on **Windows** and **Linux** (macOS support is currently in active development).
+* **Format**: Pure Python script (`.py`), making it transparent, lightweight, and easy to run.
+* **OpenRGB Integration**: Syncs your PC's RGB lighting gear (case fans, keyboards, mice, strips) right along with your phone's glyphs for a unified desktop light show.
+
+---
+
 ## 📱 Supported Devices
 
 ### ✨ Full Glyph Support
@@ -78,7 +88,7 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 ## ⚙️ Under the Hood
 
 ```text
-Audio Stream ➔ FFT Analysis (20ms window) ➔ Frequency Mapping ➔ Glyph Zones / Haptic / Flashlight
+Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mapping ➔ Glyph Zones / OpenRGB / Haptic
 
 ```
 

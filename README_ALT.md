@@ -87,13 +87,67 @@ Want to sync your setup and stream audio from your computer? Glyphix features a 
 
 ---
 
-### 🔮 We Have **BIG** Plans
+<!-- 🔥 FUTURE ROADMAP SECTION 🔥 -->
+<div align="center">
 
-Glyphix is only getting started. We have **BIG** things brewing on the horizon to take your audio-visual setups to the next level:
-* 🍏 **Native macOS Companion App**: Bringing seamless desktop audio streaming and OpenRGB sync to Apple users.
-* 🎨 **Advanced Custom Visualizer Editor**: A web and mobile tool allowing you to build, test, and share custom lighting patterns frame by frame.
-* ☁️ **Community Preset Cloud**: Instantly download community-crafted reactive presets for your favorite tracks and albums straight inside the app.
-* 🔌 **Expanded Ecosystem Integrations**: Expanding hardware support to bridge even more smart home lights and peripherals into real-time rhythm.
+<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=70&text=🔮%20THE%20FUTURE%20OF%20GLYPHIX&fontSize=28&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Future Roadmap Header" />
+
+<p align="center"><b>We're just scratching the surface. Here is a sneak peek at what's currently cooking in our dev lab:</b></p>
+
+</div>
+
+<br/>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3 align="center">🍏 Native macOS Companion</h3>
+      <div align="center">
+        <img src="https://img.shields.io/badge/Status-In_Active_Dev-D5FC2D?style=flat-square&labelColor=1a1a1a" alt="Status" />
+        <img src="https://img.shields.io/badge/Target-macOS_14+-ffffff?style=flat-square&labelColor=1a1a1a&logo=apple&logoColor=white" alt="Platform" />
+      </div>
+      <br/>
+      Seamless, high-performance desktop audio capture built specifically for modern Apple Silicon chips, with integrated <b>OpenRGB sync</b> for Mac setups.
+    </td>
+    <td width="50%" valign="top">
+      <h3 align="center">🎨 Custom Visualizer Editor</h3>
+      <div align="center">
+        <img src="https://img.shields.io/badge/Status-Prototyping-orange?style=flat-square&labelColor=1a1a1a" alt="Status" />
+        <img src="https://img.shields.io/badge/Platform-Web_%26_Mobile-D5FC2D?style=flat-square&labelColor=1a1a1a" alt="Platform" />
+      </div>
+      <br/>
+      A node-based frame editor letting you design, preview, and export custom reactive lighting curves, zone mappings, and dynamic keyframe triggers.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3 align="center">☁️ Community Preset Cloud</h3>
+      <div align="center">
+        <img src="https://img.shields.io/badge/Status-Planned-888888?style=flat-square&labelColor=1a1a1a" alt="Status" />
+        <img src="https://img.shields.io/badge/Feature-One--Click_Sync-D5FC2D?style=flat-square&labelColor=1a1a1a" alt="Feature" />
+      </div>
+      <br/>
+      Browse, rate, and download track-tailored lighting profiles directly inside the app, crafted and shared by the global Glyphix community.
+    </td>
+    <td width="50%" valign="top">
+      <h3 align="center">🔌 Smart Home Integrations</h3>
+      <div align="center">
+        <img src="https://img.shields.io/badge/Status-Research-blue?style=flat-square&labelColor=1a1a1a" alt="Status" />
+        <img src="https://img.shields.io/badge/Ecosystem-Hue_%C2%B7_Nanoleaf-ffffff?style=flat-square&labelColor=1a1a1a" alt="Ecosystem" />
+      </div>
+      <br/>
+      Bridging room-scale smart lighting ecosystems into the FFT engine so your entire ambient room lighting pulses in sync with your Glyph backplate.
+    </td>
+  </tr>
+</table>
+
+<br/>
+
+<div align="center">
+  <sub>Have an idea or want to help build one of these? <a href="https://discord.gg/cQ4hxNE8fX"><b>Join our Discord</b></a> or open a feature request on GitHub!</sub>
+</div>
+
+<br/>
 
 ---
 

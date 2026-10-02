@@ -1,16 +1,23 @@
 <div align="center">
 
+<!-- Typing intro -->
+<img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=500&size=26&pause=1000&color=D5FC2D&center=true&vCenter=true&width=480&lines=Real-Time+Music+Visualizer.;Nothing+Phone+Glyph+Sync.;Desktop+Companion+%2B+OpenRGB." alt="Typing SVG" />
+
+<br/><br/>
+
 <img src="assets/logo.png" width="120" height="120" alt="Glyphix Logo">
 
-# GLYPHIX
-### Real-Time Music Visualizer for Nothing Phone
+<br/><br/>
 
-<br>
+<!-- Action Badges -->
+<a href="https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases"><img src="https://img.shields.io/badge/Download-Latest_APK-D5FC2D?style=for-the-badge&logo=android&logoColor=black" alt="Download APK" height="35" /></a>
+<a href="https://discord.gg/cQ4hxNE8fX"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" height="35" /></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-888888?style=for-the-badge&logo=github&logoColor=white" alt="License" height="35" /></a>
+
+<br/><br/>
 
 [![Downloads](https://img.shields.io/github/downloads/oliver-lebaigue-bright-bench/glyph-syncronator/total?style=flat-square&logo=github&logoColor=white&label=Downloads&color=D5FC2D&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases)
 [![Stars](https://img.shields.io/github/stars/oliver-lebaigue-bright-bench/glyph-syncronator?style=flat-square&logo=github&logoColor=white&label=Stars&color=ffffff&labelColor=1a1a1a)](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/stargazers)
-[![License](https://img.shields.io/github/license/oliver-lebaigue-bright-bench/glyph-syncronator?style=flat-square&logo=github&logoColor=white&label=License&color=888888&labelColor=1a1a1a)](LICENSE)
-[![Discord](https://img.shields.io/discord/1509496060094054531?style=flat-square&logo=discord&logoColor=white&label=Discord&color=5865F2&labelColor=1a1a1a)](https://discord.gg/cQ4hxNE8fX)
 [![Nothing Phone](https://img.shields.io/badge/Nothing_Phone-1_·_2_·_2a_·_3_·_4-D5FC2D?style=flat-square&labelColor=1a1a1a)](#-supported-devices)
 
 <sub>Read in: [हिन्दी](Docs/README_HI.md) · [मराठी](Docs/README_MR.md) · [Türkçe](Docs/README_TR.md) · [العربية](Docs/README_AR.md)</sub>
@@ -19,27 +26,13 @@
 
 ---
 
-<br>
-
-<div align="center">
-
-| ⚡ **Precision FFT** | 🎛️ **Granular Control** | 💻 **Desktop & OpenRGB** | 🔋 **Optimized Core** |
-| :---: | :---: | :---: | :---: |
-| Real-time frequency binning per frame | Independent control of every single zone | Stream PC audio & sync RGB hardware | Minimal footprint & RAM usage |
-
-</div>
-
-<br>
-
----
-
-## 🚀 What is Glyphix?
+### 🚀 What is Glyphix?
 
 **Glyphix** delivers real-time music visualization for Nothing Phone Glyphs, haptics, and flashlights. Powered by high-precision **FFT audio analysis**, it maps frequencies to individual zones for a pixel-perfect audio-visual experience at a smooth 60 FPS.
 
 ---
 
-## 🎯 Why Choose Glyphix?
+### 🎯 Why Choose Glyphix?
 
 Stock visualizers are uniform and limited. Glyphix unleashes the true hardware potential of your phone by driving every single zone and segment independently.
 
@@ -52,7 +45,7 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 
 ---
 
-## ⚡ Quick Start
+### ⚡ Quick Start
 
 1. **Download & Install**: [Grab the latest APK release](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases).
 2. **Select Audio Source**: Choose your preferred capture source (Media Projection recommended).
@@ -62,7 +55,7 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 
 ---
 
-## 💻 Desktop Companion & OpenRGB
+### 💻 Desktop Companion & OpenRGB
 
 Want to sync your setup and stream audio from your computer? Glyphix features a lightweight **Desktop Companion script** with built-in **OpenRGB support**!
 
@@ -72,20 +65,26 @@ Want to sync your setup and stream audio from your computer? Glyphix features a 
 
 ---
 
-## 📱 Supported Devices
+### 📱 Supported Devices
 
-### ✨ Full Glyph Support
-* **Nothing Phone (1)**
-* **Nothing Phone (2), (2a), (2a) Plus**
-* **Nothing Phone (3), (3a), (3a) Pro**
-* **Nothing Phone (4a), (4b), (4a) Pro**
-
-### 🔊 Haptics & Flashlight Mode
-* Any standard Android phone is supported for haptic and flashlight visualization modes.
+<table>
+  <tr>
+    <td width="140" align="center"><strong>Full Glyph Support</strong></td>
+    <td>
+      <code>Nothing Phone (1)</code> · <code>Phone (2), (2a), (2a) Plus</code> · <code>Phone (3), (3a), (3a) Pro</code> · <code>Phone (4a), (4b), (4a) Pro</code>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Haptics & Flashlight</strong></td>
+    <td>
+      Any standard Android phone is supported for haptic and flashlight visualization modes.
+    </td>
+  </tr>
+</table>
 
 ---
 
-## ⚙️ Under the Hood
+### ⚙️ Under the Hood
 
 ```text
 Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mapping ➔ Glyph Zones / OpenRGB / Haptic
@@ -98,7 +97,7 @@ Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mappi
 
 ---
 
-## 📖 Documentation & Community
+### 📖 Documentation & Community
 
 * **[zones.config Guide](https://www.google.com/search?q=Docs/ZONES_CONFIG.md)** — Customize presets or add new device profiles.
 * **[Python Script Wiki](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/wiki/)** — Legacy bulk audio file processing tools.
@@ -107,7 +106,7 @@ Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mappi
 
 ---
 
-## 🔒 Privacy & Security
+### 🔒 Privacy & Security
 
 * **Screen Capture**: Used exclusively via Android Media Projection to read system audio streams. No video frames or screen content are ever stored or transmitted.
 * **Audio Handling**: Processed strictly in real-time RAM buffers. Audio data is never recorded, saved, or uploaded.
@@ -116,12 +115,8 @@ Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mappi
 
 ---
 
-## 👥 Core Contributors
+### 👥 Core Contributors
 
 ---
 
-### 🚀 Ready to vibe?
-
-**[Download Latest APK](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases)** • **[Join Discord](https://discord.gg/cQ4hxNE8fX)**
-
-Made with ❤️ by the Glyphix community
+Built with care by the Glyphix community. © 2026

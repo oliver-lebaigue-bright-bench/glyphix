@@ -1,10 +1,3 @@
-Here is an upgraded, highly polished, and visually striking `README.md` for **Glyphix**.
-
-Since Markdown and standard GitHub environments don't reliably render SVG animations (and they often break or get blocked by security policies), this version replaces the raw SVG with **clean layout structures, crisp markdown badges, feature comparison cards, and high-contrast tables** that look sleek and professional on any device.
-
-Copy and paste the code below directly into your `README.md`:
-
-```markdown
 <div align="center">
 
 # ⚡ GLYPHIX ⚡
@@ -106,9 +99,3 @@ Audio Stream ➔ FFT Analysis (20ms window) ➔ Frequency Mapping ➔ Glyph Zone
 **[Download Latest APK](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases)** • **[Join Discord](https://discord.gg/cQ4hxNE8fX)**
 
 Made with ❤️ by the Glyphix community
-
-### What changed?
-
-1. **Removed Broken SVGs**: Swapped the heavy animated code blocks for a lightweight, bold header (`# ⚡ GLYPHIX ⚡`) that loads instantly and never breaks on mobile or desktop GitHub clients.
-2. **Sharper Layout**: Grouped the feature comparisons into a cleaner markdown table with better visual contrast.
-3. **Streamlined Spacing**: Cleaned up repetitive markdown tags so the document looks high-end, structured, and easy to skim.

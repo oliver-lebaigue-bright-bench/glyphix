@@ -33,9 +33,6 @@
 
 ---
 
-<!-- SECTION HEADER: OVERVIEW -->
-<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=45&text=🚀%20OVERVIEW%20%26%20FEATURES&fontSize=20&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Overview Section" />
-
 <br/>
 
 ### ⚡ What is Glyphix?

@@ -65,6 +65,16 @@ Want to sync your setup and stream audio from your computer? Glyphix features a 
 
 ---
 
+### 🔮 We Have **BIG** Plans
+
+Glyphix is only getting started. We have **BIG** things brewing on the horizon to take your audio-visual setups to the next level:
+* 🍏 **Native macOS Companion App**: Bringing seamless desktop audio streaming and OpenRGB sync to Apple users.
+* 🎨 **Advanced Custom Visualizer Editor**: A web and mobile tool allowing you to build, test, and share custom lighting patterns frame by frame.
+* ☁️ **Community Preset Cloud**: Instantly download community-crafted reactive presets for your favorite tracks and albums straight inside the app.
+* 🔌 **Expanded Ecosystem Integrations**: Expanding hardware support to bridge even more smart home lights and peripherals into real-time rhythm.
+
+---
+
 ### 📱 Supported Devices
 
 <table>

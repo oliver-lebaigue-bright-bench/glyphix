@@ -1,21 +1,9 @@
 <div align="center">
 
-<svg viewBox="0 0 160 160" width="120" height="120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Glyphix Logo">
-  <rect width="160" height="160" rx="36" fill="#000000"/>
-  <g transform="translate(26, 26)">
-    <path fill="#D5FC2D" d="M33.5,57.0 H74.5 C74.5,68.3 65.3,77.5 54.0,77.5 C42.7,77.5 33.5,68.3 33.5,57.0 Z" />
-    <path fill="#D5FC2D" d="M50.5,36.0 C50.5,34.1 52.1,32.5 54.0,32.5 C55.9,32.5 57.5,34.1 57.5,36.0 V46.0 C57.5,47.9 55.9,49.5 54.0,49.5 C52.1,49.5 50.5,47.9 50.5,46.0 Z" />
-    <g transform="rotate(-45, 36.5, 42.5)">
-      <path fill="#D5FC2D" d="M33.0,37.5 C33.0,35.6 34.6,34.0 36.5,34.0 C38.4,34.0 40.0,35.6 40.0,37.5 V47.5 C40.0,49.4 38.4,51.0 36.5,51.0 C34.6,51.0 33.0,49.4 33.0,47.5 Z" />
-    </g>
-    <g transform="rotate(45, 71.5, 42.5)">
-      <path fill="#D5FC2D" d="M68.0,37.5 C68.0,35.6 69.6,34.0 71.5,34.0 C73.4,34.0 75.0,35.6 75.0,37.5 V47.5 C75.0,49.4 73.4,51.0 71.5,51.0 C69.6,51.0 68.0,49.4 68.0,47.5 Z" />
-    </g>
-  </g>
-</svg>
+<img src="assets/logo.png" width="120" height="120" alt="Glyphix Logo">
 
 # GLYPHIX
-### Real-Time Music Visualizer for Android Phones, Linux, and Windows
+### Real-Time Music Visualizer for Nothing Phone
 
 <br>
 

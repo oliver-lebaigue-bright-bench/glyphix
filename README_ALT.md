@@ -127,6 +127,58 @@ Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mappi
 
 ### 👥 Core Contributors
 
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/oliver-lebaigue-bright-bench">
+        <img src="https://github.com/oliver-lebaigue-bright-bench.png?size=80&mask=circle" width="80" alt="Oliver Lebaigue" />
+        <br/><b>Oliver Lebaigue</b>
+        <br/><small>Founder & Lead Dev</small>
+      </a>
+    </td>
+        <td align="center">
+      <a href="https://github.com/rKyzen">
+        <img src="https://github.com/rKyzen.png?size=80&mask=circle" width="80" alt="rKyzen" />
+        <br/><b>rKyzen</b>
+        <br/><small> Core Dev & Base App Maker</small>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/m-uvex">
+        <img src="https://github.com/m-uvex.png?size=80&mask=circle" width="80" alt="m_uvex" />
+        <br/><b>m_uvex</b>
+        <br/><small>Web Dev</small>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/gabibrawl">
+        <img src="https://github.com/gabibrawl.png?size=80&mask=circle" width="80" alt="GabiBrawl" />
+        <br/><b>GabiBrawl</b>
+        <br/><small>Core Dev</small>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/p-1749">
+        <img src="https://github.com/p-1749.png?size=80&mask=circle" width="80" alt="P.1749" />
+        <br/><b>P.1749</b>
+        <br/><small>Core Dev</small>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/hrenpoymikto">
+        <img src="https://github.com/hrenpoymikto.png?size=80&mask=circle" width="80" alt="hrenpoymikto" />
+        <br/><b>hrenpoymikto</b>
+        <br/><small>Core Dev &amp; Social Media</small>
+      </a>
+    </td>
+    <td align="center">
+      <img src="https://github.com/ghost.png?size=80&mask=circle" width="80" alt="Logan Hills" />
+      <br/><b>Logan Hills</b>
+      <br/><small>Social Media Team</small>
+    </td>
+  </tr>
+</table>
+
 ---
 
 Built with care by the Glyphix community. © 2026

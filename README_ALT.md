@@ -65,9 +65,6 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 <div align="center">
 
 <a href="https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator">
-  <img height="165" src="https://github-readme-stats.vercel.app/api/pin/?username=oliver-lebaigue-bright-bench&repo=glyph-syncronator&bg_color=1a1a1a&title_color=D5FC2D&text_color=ffffff&icon_color=D5FC2D&border_color=333333&show_owner=true" alt="Repo Card" />
-</a>
-<a href="https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator">
   <img height="165" src="https://github-readme-stats.vercel.app/api/top-langs/?username=oliver-lebaigue-bright-bench&repo=glyph-syncronator&layout=compact&bg_color=1a1a1a&title_color=D5FC2D&text_color=ffffff&border_color=333333&hide=html,css" alt="Top Languages" />
 </a>
 

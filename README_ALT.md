@@ -33,8 +33,6 @@
 
 ---
 
-<br/>
-
 ### ⚡ What is Glyphix?
 
 > **Glyphix** delivers real-time music visualization for Nothing Phone Glyphs, haptics, and flashlights. Powered by high-precision **FFT audio analysis**, it maps frequencies to individual zones for a pixel-perfect audio-visual experience at a smooth 60 FPS.

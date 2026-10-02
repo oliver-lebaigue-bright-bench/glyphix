@@ -33,11 +33,16 @@
 
 ---
 
-### 🚀 What is Glyphix?
+<!-- SECTION HEADER: OVERVIEW -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=45&text=🚀%20OVERVIEW%20%26%20FEATURES&fontSize=20&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Overview Section" />
 
-**Glyphix** delivers real-time music visualization for Nothing Phone Glyphs, haptics, and flashlights. Powered by high-precision **FFT audio analysis**, it maps frequencies to individual zones for a pixel-perfect audio-visual experience at a smooth 60 FPS.
+<br/>
 
----
+### ⚡ What is Glyphix?
+
+> **Glyphix** delivers real-time music visualization for Nothing Phone Glyphs, haptics, and flashlights. Powered by high-precision **FFT audio analysis**, it maps frequencies to individual zones for a pixel-perfect audio-visual experience at a smooth 60 FPS.
+
+<br/>
 
 ### 🎯 Why Choose Glyphix?
 
@@ -52,7 +57,10 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 
 ---
 
-### 📊 Repository Insights & Analytics
+<!-- SECTION HEADER: ANALYTICS -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=45&text=📊%20REPOSITORY%20INSIGHTS&fontSize=20&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Analytics Section" />
+
+<br/>
 
 <div align="center">
 
@@ -67,7 +75,12 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 
 ---
 
-### ⚡ Quick Start
+<!-- SECTION HEADER: GETTING STARTED -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=45&text=⚡%20GETTING%20STARTED&fontSize=20&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Getting Started Section" />
+
+<br/>
+
+### 📲 Quick Start Guide
 
 1. **Download & Install**: [Grab the latest APK release](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/releases).
 2. **Select Audio Source**: Choose your preferred capture source (Media Projection recommended).
@@ -75,7 +88,7 @@ Stock visualizers are uniform and limited. Glyphix unleashes the true hardware p
 
 > **💡 Bluetooth Latency?** Head over to the **Audio** tab in the app to calibrate sync offsets. Advanced users can fine-tune frequency presets in `zones.config` (see the [Configuration Guide](Docs/ZONES_CONFIG.md)).
 
----
+<br/>
 
 ### 💻 Desktop Companion & OpenRGB
 
@@ -147,6 +160,11 @@ Want to sync your setup and stream audio from your computer? Glyphix features a 
 
 ---
 
+<!-- SECTION HEADER: HARDWARE & TECHNICAL -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=45&text=⚙️%20HARDWARE%20%26%20ARCHITECTURE&fontSize=20&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Hardware Section" />
+
+<br/>
+
 ### 📱 Supported Devices
 
 <table>
@@ -164,9 +182,9 @@ Want to sync your setup and stream audio from your computer? Glyphix features a 
   </tr>
 </table>
 
----
+<br/>
 
-### ⚙️ Under the Hood
+### 🛠️ Under the Hood
 
 ```text
 Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mapping ➔ Glyph Zones / OpenRGB / Haptic
@@ -179,14 +197,12 @@ Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mappi
 
 ---
 
-### 📖 Documentation & Community
+### 📖 Documentation & Links
 
 * **[zones.config Guide](https://www.google.com/search?q=Docs/ZONES_CONFIG.md)** — Customize presets or add new device profiles.
 * **[Python Script Wiki](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/wiki/)** — Legacy bulk audio file processing tools.
 * **[Discord Server](https://discord.gg/cQ4hxNE8fX)** — Chat with developers and the community.
 * **[Issue Tracker](https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator/issues)** — Report bugs or request features.
-
----
 
 ### 🔒 Privacy & Security
 
@@ -194,8 +210,6 @@ Audio Stream (Mobile/Desktop) ➔ FFT Analysis (20ms window) ➔ Frequency Mappi
 * **Audio Handling**: Processed strictly in real-time RAM buffers. Audio data is never recorded, saved, or uploaded.
 * **Analytics**: Completely optional, anonymous usage stats to help patch crashes and boost stability.
 * **Safety Scan**: [View VirusTotal Report](https://www.virustotal.com/gui/url/c92c1ff82b56eb60bfd1e159592d09f949f0ea2d195e01f7f5adbef0e0b0385b)
-
----
 
 ### 👥 Core Contributors
 

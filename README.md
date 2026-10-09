@@ -153,7 +153,7 @@ Want to sync your setup and stream audio from your computer? Glyphix features a 
 ---
 
 <!-- SECTION HEADER: HARDWARE & TECHNICAL -->
-<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=45&text=🛠️%20HARDWARE%20%26%20ARCHITECTURE&fontSize=20&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Hardware Section" />
+<img src="https://capsule-render.vercel.app/api?type=rect&color=1a1a1a&height=45&text=HARDWARE%20%26%20ARCHITECTURE&fontSize=20&fontColor=D5FC2D&stroke=D5FC2D&strokeWidth=1" width="100%" alt="Hardware Section" />
 
 <br/>
 

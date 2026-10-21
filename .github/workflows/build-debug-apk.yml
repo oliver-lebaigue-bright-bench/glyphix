@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   Gradle:
-    if: endsWith(github.event.head_commit.message, 'workflow build') && github.actor != 'github-actions[bot]'
+    if: contains(github.event.head_commit.message, 'workflow build') && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:

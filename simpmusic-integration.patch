@@ -1,0 +1,2956 @@
+diff --git a/.gitattributes b/.gitattributes
+new file mode 100644
+index 0000000..5f87490
+--- /dev/null
++++ b/.gitattributes
+@@ -0,0 +1,3 @@
++
++# Unified patch context uses a literal leading space for empty source lines.
++simpmusic-integration/patches/*.patch -whitespace
+diff --git a/.github/workflows/simpmusic-integration.yml b/.github/workflows/simpmusic-integration.yml
+new file mode 100644
+index 0000000..c0ce27e
+--- /dev/null
++++ b/.github/workflows/simpmusic-integration.yml
+@@ -0,0 +1,58 @@
++name: Native SimpMusic integration
++on:
++  push:
++    branches: ['integration/simpmusic']
++  pull_request:
++    paths:
++      - 'app/**'
++      - 'simpmusic-integration/**'
++      - 'tests/simpmusic/**'
++      - '.github/workflows/simpmusic-integration.yml'
++  workflow_dispatch:
++permissions:
++  contents: write
++concurrency:
++  group: simpmusic-${{ github.ref }}
++  cancel-in-progress: true
++jobs:
++  android:
++    runs-on: ubuntu-latest
++    timeout-minutes: 45
++    steps:
++      - uses: actions/checkout@v4
++      - name: Materialise reviewed source change set
++        if: github.event_name == 'push' && github.ref == 'refs/heads/integration/simpmusic'
++        run: |
++          if [ -f simpmusic-integration.patch ]; then
++            git apply --check --exclude=.github/workflows/simpmusic-integration.yml simpmusic-integration.patch
++            git apply --exclude=.github/workflows/simpmusic-integration.yml simpmusic-integration.patch
++            git config user.name 'github-actions[bot]'
++            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
++            git add app simpmusic-integration tests/simpmusic .gitignore .gitattributes
++            git rm simpmusic-integration.patch
++            git commit -m 'Integrate pinned native SimpMusic sources with Glyphix'
++            git push origin HEAD:integration/simpmusic
++          fi
++      - uses: actions/setup-java@v4
++        with:
++          distribution: temurin
++          java-version: '21'
++      - uses: android-actions/setup-android@v3
++      - name: Prepare pinned sources and verify patches
++        run: python3 simpmusic-integration/prepare.py
++      - name: Test PCM conversion
++        run: bash tests/simpmusic/run.sh
++      - name: Install Android platform
++        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
++      - name: Create development signing key
++        run: |
++          mkdir -p keystore
++          keytool -genkeypair -keystore keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Glyphix Development,O=Glyphix,C=IE'
++      - uses: gradle/actions/setup-gradle@v4
++      - name: Compile integrated APK and run lint
++        run: bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphix:lintDebug --no-configuration-cache
++      - uses: actions/upload-artifact@v4
++        with:
++          name: glyphix-simpmusic-debug
++          path: app/build/outputs/apk/debug/*.apk
++          if-no-files-found: error
+diff --git a/.gitignore b/.gitignore
+index 6b90249..df6e764 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -18,3 +18,7 @@ keystore*
+ *.jks
+ *.keystore
+ app/release/
++
++# Reproducible native music dependency worktree
++.simpmusic-build/
++.simpmusic-prepare-*/
+diff --git a/app/build-simpmusic.gradle b/app/build-simpmusic.gradle
+new file mode 100644
+index 0000000..0e61bb8
+--- /dev/null
++++ b/app/build-simpmusic.gradle
+@@ -0,0 +1,159 @@
++// Native music integration build; normal app/build.gradle remains independently buildable.
++import org.jetbrains.kotlin.gradle.dsl.JvmTarget
++
++plugins {
++    id 'com.android.application'
++    id 'org.jetbrains.kotlin.plugin.compose'
++    id 'com.google.gms.google-services'
++}
++
++android {
++    namespace 'com.glyphix.app'
++    compileSdk 37
++
++    defaultConfig {
++        applicationId "com.glyphix.app"
++        minSdk 26
++        targetSdk 36
++        versionCode 1
++        versionName '1.0'
++    }
++
++    signingConfigs {
++        debug {
++            storeFile file('../keystore/debug.keystore')
++            storePassword 'android'
++            keyAlias 'androiddebugkey'
++            keyPassword 'android'
++        }
++        release {
++            storeFile file('../keystore/debug.keystore')
++            storePassword 'android'
++            keyAlias 'androiddebugkey'
++            keyPassword 'android'
++        }
++    }
++
++    buildTypes {
++        release {
++            signingConfig signingConfigs.release
++            minifyEnabled true
++            shrinkResources true
++            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
++        }
++        debug {
++            signingConfig signingConfigs.debug
++            debuggable true
++            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
++            versionNameSuffix '.debug'
++        }
++    }
++
++    sourceSets {
++        main {
++            java.srcDir '../simpmusic-integration/src/main/kotlin'
++            manifest.srcFile '../simpmusic-integration/src/main/AndroidManifest.xml'
++            res.srcDir '../simpmusic-integration/src/main/res'
++            assets.srcDir '../simpmusic-integration/licenses'
++        }
++    }
++    packaging {
++        resources.excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*',
++            'META-INF/ASL2.0', 'META-INF/CONTRIBUTORS.md', 'META-INF/versions/9/OSGI-INF/MANIFEST.MF']
++    }
++    buildFeatures {
++        compose true
++        buildConfig true
++    }
++
++    compileOptions {
++        coreLibraryDesugaringEnabled true
++        sourceCompatibility JavaVersion.VERSION_21
++        targetCompatibility JavaVersion.VERSION_21
++    }
++
++}
++
++kotlin {
++    compilerOptions {
++        jvmTarget.set(JvmTarget.JVM_21)
++    }
++}
++
++dependencies {
++    implementation project(':composeApp')
++    implementation project(':data')
++    implementation project(':domain')
++    implementation project(':common')
++    implementation project(':media3')
++    implementation platform(libs.koin.bom)
++    implementation libs.koin.android
++    implementation libs.uri
++    coreLibraryDesugaring libs.desugaring
++    implementation 'com.google.code.gson:gson:2.10.1'
++
++    // 1. Keep your local SDK
++    implementation fileTree(dir: 'libs', include: ['*.aar', '*.jar'])
++
++    // FFT Library for better accuracy
++    implementation 'com.github.wendykierp:JTransforms:3.2'
++
++    // 2. Compose BOM - Manages versions for all compose libs below
++    implementation platform('androidx.compose:compose-bom:2026.09.00')
++
++    // Firebase
++    implementation platform('com.google.firebase:firebase-bom:34.15.0')
++    implementation 'com.google.firebase:firebase-analytics'
++    implementation 'com.google.firebase:firebase-database'
++    implementation 'com.google.android.gms:play-services-auth:21.6.0'
++    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0'
++    implementation 'com.google.firebase:firebase-auth'
++
++    // Coil for image loading
++    implementation("io.coil-kt.coil3:coil-compose:3.5.0")
++    implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
++
++    // 3. Core Compose Libraries (Versions handled by BOM)
++    implementation 'androidx.compose.ui:ui'
++    implementation 'androidx.compose.ui:ui-graphics'
++    implementation 'androidx.compose.ui:ui-tooling-preview'
++    implementation 'androidx.compose.animation:animation'
++    implementation 'androidx.compose.foundation:foundation-layout'
++    implementation 'androidx.compose.runtime:runtime'
++    implementation 'androidx.compose.animation:animation-core'
++    implementation 'androidx.compose.foundation:foundation'
++    implementation 'androidx.compose.ui:ui-text'
++
++    // 4. Material 3
++    implementation "androidx.compose.material3:material3"
++    implementation 'com.google.android.material:material:1.14.0'
++    implementation 'androidx.graphics:graphics-shapes:1.1.0'
++
++    // 5. Activity & Lifecycle
++    implementation 'androidx.activity:activity-compose:1.13.0'
++    implementation 'androidx.lifecycle:lifecycle-service:2.11.0'
++    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.11.0'
++    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.11.0'
++    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0'
++    implementation 'androidx.savedstate:savedstate-ktx:1.5.0'
++
++    // 6. Icons
++    implementation 'androidx.compose.material:material-icons-extended'
++    implementation 'br.com.devsrsouza.compose.icons:font-awesome:1.1.1'
++
++    // 7. Legacy Support
++    implementation 'androidx.appcompat:appcompat:1.7.1'
++    implementation 'androidx.palette:palette-ktx:1.0.0'
++    implementation 'androidx.benchmark:benchmark-traceprocessor:1.4.1'
++
++    // 8. Spotify Integration & Networking
++    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
++    implementation 'com.squareup.retrofit2:converter-gson:2.11.0'
++    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
++    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
++    implementation 'androidx.browser:browser:1.8.0'
++    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
++
++    // 9. Debugging
++    debugImplementation 'androidx.compose.ui:ui-tooling'
++}
+diff --git a/app/src/main/java/com/glyphix/app/music/MusicIntegration.kt b/app/src/main/java/com/glyphix/app/music/MusicIntegration.kt
+new file mode 100644
+index 0000000..c782b49
+--- /dev/null
++++ b/app/src/main/java/com/glyphix/app/music/MusicIntegration.kt
+@@ -0,0 +1,20 @@
++package com.glyphix.app.music
++
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Modifier
++
++/** Native music implementation is installed by the integration build's Application. */
++interface MusicFeature {
++    fun attach(activity: androidx.activity.ComponentActivity) {}
++    fun detach(activity: androidx.activity.ComponentActivity) {}
++    fun onIntent(intent: android.content.Intent) {}
++    @Composable fun Screen(modifier: Modifier)
++    @Composable fun Player(modifier: Modifier, onOpenMusic: () -> Unit)
++}
++
++object MusicIntegration {
++    var feature: MusicFeature? = null
++        private set
++    fun install(feature: MusicFeature) { check(this.feature == null); this.feature = feature }
++    val available: Boolean get() = feature != null
++}
+diff --git a/app/src/main/java/com/glyphix/app/music/MusicNavigation.kt b/app/src/main/java/com/glyphix/app/music/MusicNavigation.kt
+new file mode 100644
+index 0000000..eeff08d
+--- /dev/null
++++ b/app/src/main/java/com/glyphix/app/music/MusicNavigation.kt
+@@ -0,0 +1,11 @@
++package com.glyphix.app.music
++
++import com.glyphix.app.ui.Tab
++
++fun primaryGlyphixTabs(): List<Tab> = buildList {
++    add(Tab.Audio)
++    if (MusicIntegration.available) add(Tab.Music)
++    add(Tab.Leaderboard)
++    add(Tab.Settings)
++    add(Tab.Info)
++}
+diff --git a/app/src/main/java/com/glyphix/app/service/AudioCaptureService.java b/app/src/main/java/com/glyphix/app/service/AudioCaptureService.java
+index faa93dc..8cd3629 100644
+--- a/app/src/main/java/com/glyphix/app/service/AudioCaptureService.java
++++ b/app/src/main/java/com/glyphix/app/service/AudioCaptureService.java
+@@ -106,7 +106,7 @@ public class AudioCaptureService extends Service {
+     private static final String TAG = "GlyphViz:Service";
+     private static final String CHANNEL_ID = "glyph_viz_channel";
+     private static final int NOTIF_ID = 1;
+-    public enum CaptureSource { INTERNAL, MIC, VIZUALIZER, SPOTIFY, NETWORK, SMART }
++    public enum CaptureSource { INTERNAL, MIC, VIZUALIZER, SPOTIFY, NETWORK, SMART, SIMPMUSIC }
+     private com.glyphix.app.logic.smartcapture.SmartSourceSession mSmartSource;
+     private boolean mRenderingSmartFrame;
+     private long mLastSmartSetupMs;
+@@ -486,7 +486,7 @@ public class AudioCaptureService extends Service {
+                     dispatchDueFrames(mVisualizerPendingFrames); 
+                 }
+                 
+-                if (mCaptureSource == CaptureSource.VIZUALIZER || mCaptureSource == CaptureSource.NETWORK || mCaptureSource == CaptureSource.SPOTIFY) {
++                if (mCaptureSource == CaptureSource.VIZUALIZER || mCaptureSource == CaptureSource.NETWORK || mCaptureSource == CaptureSource.SPOTIFY || mCaptureSource == CaptureSource.SIMPMUSIC) {
+                     // Only send a silent frame if we haven't sent anything for a while (e.g. 150ms)
+                     // This avoids flicker when Visualizer callbacks are slower than 60fps (e.g. 20Hz / 50ms)
+                     if (now - mLastSendMs >= 150 && mVisualizerConfig != null) processFrame(new float[0], 0f, mVisualizerConfig, mPresetConfigVersion.get());
+@@ -691,7 +691,8 @@ public class AudioCaptureService extends Service {
+ 
+     public static boolean isRunning() { return sIsRunning; }
+     public void startVisualizer() {
+-        if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
++        if (mCaptureSource == CaptureSource.SIMPMUSIC) startCaptureInternal(CaptureSource.SIMPMUSIC, 0, null);
++        else if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
+         else if (mCaptureSource == CaptureSource.MIC) startMicCapture();
+         else if (mCaptureSource == CaptureSource.VIZUALIZER) startVizualizerCapture();
+         else if (mCaptureSource == CaptureSource.SPOTIFY) startSpotifyCapture();
+@@ -706,7 +707,8 @@ public class AudioCaptureService extends Service {
+     private void restartCapture() {
+         if (mWorkerHandler != null) mWorkerHandler.post(() -> {
+             stopCapture();
+-            if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
++            if (mCaptureSource == CaptureSource.SIMPMUSIC) startCaptureInternal(CaptureSource.SIMPMUSIC, 0, null);
++        else if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
+             else if (mCaptureSource == CaptureSource.MIC) startMicCapture();
+             else if (mCaptureSource == CaptureSource.VIZUALIZER) startVizualizerCapture();
+             else if (mCaptureSource == CaptureSource.SPOTIFY) startSpotifyCapture();
+@@ -1112,6 +1114,14 @@ public class AudioCaptureService extends Service {
+                         } else {
+                             Log.e(TAG, "MediaProjection is null or SDK < Q for internal capture");
+                         }
++                    } else if (source == CaptureSource.SIMPMUSIC) {
++                        // Publish readiness on the same worker that drains decoded PCM.
++                        final int generation = mMusicGeneration.get();
++                        mWorkerHandler.post(() -> {
++                            if (mCapturing && mCaptureSource == CaptureSource.SIMPMUSIC
++                                    && generation == mMusicGeneration.get()) mIntegratedMusicReady = true;
++                        });
++                        return;
+                     } else if (source == CaptureSource.SMART || source == CaptureSource.VIZUALIZER || source == CaptureSource.SPOTIFY) {
+                         setupVisualizerCapture();
+                         return;
+@@ -1155,6 +1165,9 @@ public class AudioCaptureService extends Service {
+ 
+     public void stopCapture() { synchronized (mCaptureLock) { stopCaptureLocked(); } }
+     private void stopCaptureLocked() {
++        mIntegratedMusicReady = false;
++        mMusicGeneration.incrementAndGet();
++        mMusicFrame.set(null);
+         if (mSmartSource != null) mSmartSource.stop();
+         mCapturing = false; setRunning(false); updateOverlayVisibility();
+         syncStatsToGlobal();
+@@ -1606,6 +1619,72 @@ public class AudioCaptureService extends Service {
+         }
+     }
+ 
++    private volatile boolean mIntegratedMusicReady;
++    private final java.util.concurrent.atomic.AtomicReference<IntegratedMusicFrame> mMusicFrame =
++            new java.util.concurrent.atomic.AtomicReference<>();
++    private final java.util.concurrent.atomic.AtomicBoolean mMusicDrainPosted =
++            new java.util.concurrent.atomic.AtomicBoolean();
++    private static final class IntegratedMusicFrame {
++        final short[] samples;
++        final int sampleRate;
++        final int generation;
++        IntegratedMusicFrame(short[] samples, int sampleRate, int generation) {
++            this.samples = samples; this.sampleRate = sampleRate; this.generation = generation;
++        }
++    }
++    private final java.util.concurrent.atomic.AtomicInteger mMusicGeneration =
++            new java.util.concurrent.atomic.AtomicInteger();
++
++    /** Bounded latest-frame mailbox; the player thread never runs FFT or hardware work. */
++    public void submitIntegratedMusicPcm(short[] mono, int sampleRate) {
++        if (!mIntegratedMusicReady || !mCapturing || mCaptureSource != CaptureSource.SIMPMUSIC || mono.length == 0
++                || mono.length > 8192 || sampleRate < 8000 || sampleRate > 192000) return;
++        mMusicFrame.set(new IntegratedMusicFrame(mono.clone(), sampleRate, mMusicGeneration.get()));
++        scheduleIntegratedMusicDrain();
++    }
++    private void scheduleIntegratedMusicDrain() {
++        Handler handler = mWorkerHandler;
++        if (handler != null && mMusicDrainPosted.compareAndSet(false, true)) {
++            if (!handler.post(this::drainIntegratedMusic)) mMusicDrainPosted.set(false);
++        }
++    }
++    private void drainIntegratedMusic() {
++        try {
++            IntegratedMusicFrame frame = mMusicFrame.getAndSet(null);
++            if (frame == null || frame.generation != mMusicGeneration.get() || !mCapturing
++                    || mCaptureSource != CaptureSource.SIMPMUSIC || mVisualizerConfig == null) return;
++            if (mCurrentSampleRate != frame.sampleRate) {
++                mCurrentSampleRate = frame.sampleRate;
++                mAudioProcessor.updateFFTSize(frame.sampleRate);
++                try {
++                    mVisualizerConfig = loadVisualizerConfig(mPresetKey, frame.sampleRate);
++                    mPresetConfigVersion.incrementAndGet();
++                } catch (IOException | JSONException error) {
++                    Log.w(TAG, "Cannot reload music frequency mapping", error);
++                    return;
++                }
++            }
++            sendPcmToPc(frame.samples, frame.samples.length);
++            AudioProcessor.AudioFrameResult result = mAudioProcessor.processAudioFrame(
++                    frame.samples, frame.samples.length, mVisualizerConfig,
++                    mHapticEnabled ? mHapticRange : null,
++                    mFlashlightEnabled ? mFlashlightRange : null, true);
++            if (result != null) {
++                PendingFrame pending = new PendingFrame(result.uniqueMagnitudes, result.rawFFT,
++                        result.decayedFFT, result.hapticPeak, result.uiPeak, result.flashlightPeak,
++                        mVisualizerConfig, mPresetConfigVersion.get(),
++                        SystemClock.elapsedRealtime() + mLatencyCompensationMs);
++                synchronized (mVisualizerPendingFrames) {
++                    mVisualizerPendingFrames.addLast(pending);
++                    dispatchDueFrames(mVisualizerPendingFrames);
++                }
++            }
++        } finally {
++            mMusicDrainPosted.set(false);
++            if (mMusicFrame.get() != null) scheduleIntegratedMusicDrain();
++        }
++    }
++
+     private void runCaptureLoop(AudioRecord record) {
+         int hopSize = Math.round(record.getSampleRate() / (float) FPS); short[] hop = new short[hopSize];
+         Log.d(TAG, "Entering capture loop with hopSize: " + hopSize);
+diff --git a/app/src/main/java/com/glyphix/app/ui/MainActivity.kt b/app/src/main/java/com/glyphix/app/ui/MainActivity.kt
+index c15232c..119d712 100644
+--- a/app/src/main/java/com/glyphix/app/ui/MainActivity.kt
++++ b/app/src/main/java/com/glyphix/app/ui/MainActivity.kt
+@@ -226,6 +226,7 @@ class MainActivity : ComponentActivity() {
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
++        com.glyphix.app.music.MusicIntegration.feature?.attach(this)
+         enableEdgeToEdge(
+             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+@@ -383,6 +384,7 @@ class MainActivity : ComponentActivity() {
+                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                     }
+                 }
++                AudioCaptureService.CaptureSource.SIMPMUSIC -> s.startVisualizer()
+                 AudioCaptureService.CaptureSource.SMART -> s.startVisualizer()
+                 AudioCaptureService.CaptureSource.VIZUALIZER -> s.startVisualizer()
+                 AudioCaptureService.CaptureSource.SPOTIFY -> s.startVisualizer()
+@@ -528,6 +530,7 @@ class MainActivity : ComponentActivity() {
+     }
+ 
+     override fun onDestroy() {
++        com.glyphix.app.music.MusicIntegration.feature?.detach(this)
+         super.onDestroy()
+         unbindService(serviceConnection)
+         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+@@ -545,6 +548,7 @@ class MainActivity : ComponentActivity() {
+     override fun onNewIntent(intent: Intent) {
+         super.onNewIntent(intent)
+         setIntent(intent)
++        com.glyphix.app.music.MusicIntegration.feature?.onIntent(intent)
+         intent.data?.let { uri ->
+             if (uri.scheme == "glyphix" && uri.host == "spotify-callback") {
+                 viewModel.spotifyAuthManager.handleAuthCallback(uri)
+@@ -591,12 +595,7 @@ internal fun GlyphixApp(
+     val context = LocalContext.current
+ 
+     val visibleTabs = remember {
+-        listOf(
+-            Tab.Audio,
+-            Tab.Leaderboard,
+-            Tab.Settings,
+-            Tab.Info
+-        )
++        com.glyphix.app.music.primaryGlyphixTabs()
+     }
+ 
+     val pagerState = rememberPagerState(initialPage = visibleTabs.indexOf(selectedTab).coerceAtLeast(0)) { visibleTabs.size }
+@@ -653,6 +652,7 @@ internal fun GlyphixApp(
+     val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
+ 
+     val screenTitle = when (selectedTab) {
++        Tab.Music -> "Music"
+         Tab.Audio -> "Glyphix"
+         Tab.Leaderboard -> "Leaderboard"
+         Tab.Spotify -> "Spotify"
+@@ -834,6 +834,21 @@ internal fun GlyphixApp(
+                             viewModel = viewModel
+                         )
+                     }
++                    Tab.Music -> {
++                        Column(Modifier.fillMaxSize().padding(bottom = 100.dp)) {
++                            val musicSource = AudioCaptureService.CaptureSource.SIMPMUSIC
++                            androidx.compose.material3.FilterChip(
++                                selected = isRunning && captureSource == musicSource,
++                                onClick = {
++                                    if (isRunning && captureSource == musicSource) onToggleVisualizer()
++                                    else onSwitchCaptureSource(musicSource)
++                                },
++                                label = { Text("Visualise built-in music") },
++                                modifier = Modifier.padding(horizontal = 16.dp)
++                            )
++                            com.glyphix.app.music.MusicIntegration.feature?.Screen(Modifier.weight(1f))
++                        }
++                    }
+                     Tab.Spotify -> {
+                         SpotifyScreen(
+                             spotifyRepo = viewModel.spotifyRepository,
+@@ -901,6 +916,13 @@ internal fun GlyphixApp(
+             }
+         }
+ 
++        // The same native player remains available while configuring Glyphs, haptics and audio.
++        if (selectedTab != Tab.Music) {
++            com.glyphix.app.music.MusicIntegration.feature?.Player(
++                Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp, start = 16.dp, end = 16.dp),
++                onOpenMusic = { viewModel.selectTab(Tab.Music) }
++            )
++        }
+         // Floating Bottom Navigation Bar (Floats directly over pages with no reserved space)
+         FloatingBottomBar(
+             selectedTab = selectedTab,
+diff --git a/app/src/main/java/com/glyphix/app/ui/MainViewModel.kt b/app/src/main/java/com/glyphix/app/ui/MainViewModel.kt
+index 2bbd8bc..ca14e0c 100644
+--- a/app/src/main/java/com/glyphix/app/ui/MainViewModel.kt
++++ b/app/src/main/java/com/glyphix/app/ui/MainViewModel.kt
+@@ -49,6 +49,7 @@ import kotlin.math.pow
+ import kotlin.math.sqrt
+ 
+ enum class Tab(val label: String, val labelRes: Int) {
++    Music("Music", R.string.tab_music),
+     Audio("Audio", R.string.tab_audio), 
+     Leaderboard("Leaderboard", R.string.tab_leaderboard),
+     Glyphs("Glyphs", R.string.tab_glyphs), 
+diff --git a/app/src/main/java/com/glyphix/app/ui/MockupDesignSystem.kt b/app/src/main/java/com/glyphix/app/ui/MockupDesignSystem.kt
+index b047fea..fddcb4f 100644
+--- a/app/src/main/java/com/glyphix/app/ui/MockupDesignSystem.kt
++++ b/app/src/main/java/com/glyphix/app/ui/MockupDesignSystem.kt
+@@ -671,6 +671,7 @@ private data class TabItem(
+ )
+ 
+ private fun getTabItem(tab: Tab): TabItem = when (tab) {
++    Tab.Music -> TabItem(Tab.Music, icon = Icons.Default.MusicNote, label = "Music")
+     Tab.Audio -> TabItem(Tab.Audio, icon = Icons.Default.MusicNote, label = "Audio")
+     Tab.Leaderboard -> TabItem(Tab.Leaderboard, icon = FontAwesomeIcons.Solid.Trophy, label = "Leaderboard")
+     Tab.Spotify -> TabItem(Tab.Spotify, icon = Icons.Default.GraphicEq, label = "Spotify")
+@@ -680,12 +681,7 @@ private fun getTabItem(tab: Tab): TabItem = when (tab) {
+ }
+ 
+ private fun getNavItemsForTab(tab: Tab): List<TabItem> {
+-    return listOf(
+-        getTabItem(Tab.Audio),
+-        getTabItem(Tab.Leaderboard),
+-        getTabItem(Tab.Settings),
+-        getTabItem(Tab.Info)
+-    )
++    return com.glyphix.app.music.primaryGlyphixTabs().map { getTabItem(it) }
+ }
+ 
+ /**
+@@ -723,6 +719,9 @@ fun SpeedDialFabMenu(
+         if (isRunning) {
+             list.add(Triple("Stop Visualizer", Icons.Default.Stop, AudioCaptureService.CaptureSource.INTERNAL))
+         }
++        if (com.glyphix.app.music.MusicIntegration.available) {
++            list.add(Triple("Built-in music", Icons.Default.MusicNote, AudioCaptureService.CaptureSource.SIMPMUSIC))
++        }
+         list.addAll(listOf(
+             Triple("Smart Source", Icons.Outlined.StarOutline, AudioCaptureService.CaptureSource.SMART),
+             Triple("Screen Capture", Icons.Outlined.Image, AudioCaptureService.CaptureSource.INTERNAL),
+diff --git a/app/src/main/java/com/glyphix/app/ui/PrimaryScreens/AudioSetupScreen.kt b/app/src/main/java/com/glyphix/app/ui/PrimaryScreens/AudioSetupScreen.kt
+index 851c1a2..09c21de 100644
+--- a/app/src/main/java/com/glyphix/app/ui/PrimaryScreens/AudioSetupScreen.kt
++++ b/app/src/main/java/com/glyphix/app/ui/PrimaryScreens/AudioSetupScreen.kt
+@@ -681,7 +681,10 @@ fun CaptureSourceCard(
+     MockupCard(modifier = Modifier.fillMaxWidth()) {
+         CardHeader(title = "Audio Input Source")
+         Spacer(modifier = Modifier.height(10.dp))
+-        val mainSources = listOf(
++        val musicSources = if (com.glyphix.app.music.MusicIntegration.available) listOf(
++            Triple(AudioCaptureService.CaptureSource.SIMPMUSIC, "Built-in music", Icons.Default.MusicNote)
++        ) else emptyList()
++        val mainSources = musicSources + listOf(
+             Triple(AudioCaptureService.CaptureSource.SMART, "Smart Source", FontAwesomeIcons.Solid.Magic),
+             Triple(
+                 AudioCaptureService.CaptureSource.INTERNAL,
+diff --git a/app/src/main/java/com/glyphix/app/ui/SecondaryScreens/LicenseScreen.kt b/app/src/main/java/com/glyphix/app/ui/SecondaryScreens/LicenseScreen.kt
+index dbba1a6..1436a62 100644
+--- a/app/src/main/java/com/glyphix/app/ui/SecondaryScreens/LicenseScreen.kt
++++ b/app/src/main/java/com/glyphix/app/ui/SecondaryScreens/LicenseScreen.kt
+@@ -9,6 +9,7 @@ import compose.icons.fontawesomeicons.Solid
+ import compose.icons.fontawesomeicons.solid.*
+ import androidx.compose.material3.*
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.setValue
+ import androidx.compose.runtime.getValue
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.res.stringResource
+@@ -53,6 +54,22 @@ internal fun LicenseScreen(
+ 
+             ScreenTitle(text = stringResource(R.string.license_title).uppercase())
+ 
++            if (com.glyphix.app.music.MusicIntegration.available) {
++                val context = androidx.compose.ui.platform.LocalContext.current
++                val musicLicense = androidx.compose.runtime.remember {
++                    context.assets.open("SimpMusic-GPL-3.0.txt").bufferedReader().use { it.readText() }
++                }
++                var expanded by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
++                ExpressiveCard {
++                    Text("SimpMusic and SimpMusic core", style = MaterialTheme.typography.titleMedium)
++                    Text("Music engine and interface by maxrave-dev and contributors. Native Glyphix integration modifications are provided under GPL-3.0-only. Original Glyphix source retains its MIT notice.")
++                    TextButton(onClick = { expanded = !expanded }) {
++                        Text(if (expanded) "Hide GPL licence" else "Read GPL licence")
++                    }
++                    if (expanded) Text(musicLicense, style = MaterialTheme.typography.bodySmall)
++                }
++                Spacer(Modifier.height(16.dp))
++            }
+             ExpressiveCard {
+                 when (val status = licenseStatus) {
+                     is MainViewModel.LicenseStatus.Loading -> {
+diff --git a/app/src/main/java/com/glyphix/app/ui/UIComponents.kt b/app/src/main/java/com/glyphix/app/ui/UIComponents.kt
+index 1f7c6f4..2e5bb34 100644
+--- a/app/src/main/java/com/glyphix/app/ui/UIComponents.kt
++++ b/app/src/main/java/com/glyphix/app/ui/UIComponents.kt
+@@ -1405,12 +1405,7 @@ fun NativeBottomBar(
+     val uiAmp = LocalUIAmplitude.current
+ 
+     val visibleTabs = remember {
+-        listOf(
+-            Tab.Audio,
+-            Tab.Leaderboard,
+-            Tab.Settings,
+-            Tab.Info
+-        )
++        com.glyphix.app.music.primaryGlyphixTabs()
+     }
+ 
+     if (isGlass) {
+@@ -1513,6 +1508,7 @@ fun NativeBottomBar(
+                                 )
+                             } else {
+                                 when (tab) {
++                                    Tab.Music -> Icon(Icons.Default.MusicNote, null, iconModifier, tint = contentColor)
+                                     Tab.Audio -> Icon(FontAwesomeIcons.Solid.Music, null, iconModifier, tint = contentColor)
+                                     Tab.Leaderboard -> Icon(FontAwesomeIcons.Solid.Trophy, null, iconModifier, tint = contentColor)
+                                     Tab.Glyphs -> Icon(painterResource(R.drawable.ic_nav_glyphs), null, iconModifier, tint = contentColor)
+@@ -1583,6 +1579,7 @@ fun NativeBottomBar(
+                             )
+                         } else {
+                             when (tab) {
++                                Tab.Music -> Icon(Icons.Default.MusicNote, null, iconModifier)
+                                 Tab.Audio -> Icon(FontAwesomeIcons.Solid.Music, null, iconModifier)
+                                 Tab.Leaderboard -> Icon(FontAwesomeIcons.Solid.Trophy, null, iconModifier)
+                                 Tab.Glyphs -> Icon(painterResource(R.drawable.ic_nav_glyphs), null, iconModifier)
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index 654cea2..9106b7a 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -1,5 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
++    <string name="tab_music">Music</string>
++    <string name="source_simpmusic">Built-in music</string>
+     <string name="app_name">Glyphix</string>
+ 
+     <!-- Audio Screen -->
+diff --git a/simpmusic-integration/README.md b/simpmusic-integration/README.md
+new file mode 100644
+index 0000000..cce8f84
+--- /dev/null
++++ b/simpmusic-integration/README.md
+@@ -0,0 +1,65 @@
++# Native SimpMusic integration
++
++Experimental integration branch for Glyphix. This is a source integration, not an embedded website, external app launcher, or second APK. **Android compilation and device acceptance are not yet verified. Do not publish this as a working release until the build and acceptance checks pass.**
++
++## Implemented wiring
++
++- A Music destination in Glyphix's existing navigation, installed only by the integration build.
++- SimpMusic's native Compose music experience, including its existing discovery, search, library, playlists, queue, lyrics and music settings routes. Upstream routes are reused, not reimplemented as mock data.
++- Host colour scheme, typography and shapes passed into the music subtree. Direct calls to upstream typography also use the host typography.
++- A shared, persistent native player with previous, play/pause and next controls outside the Music destination, backed by the same media handler as the music UI.
++- An explicit built-in music visualisation source. Starting and stopping visualisation remains the user's choice and does not start or stop music playback.
++- PCM taps in both standard and crossfade Media3 renderer factories, after per-track audio effects. PCM is forwarded without altering the playback buffer.
++- A bounded latest-frame mailbox to the existing Glyphix FFT/rendering pipeline, keeping FFT/hardware work off the playback thread. It feeds the existing enabled Glyph, haptic, flashlight, overlay, latency compensation and PC PCM-stream outputs.
++- Track metadata reaches the existing automatic preset engine without requiring notification access.
++- Native music playback/download services, media buttons, Android Auto service declaration, sharing provider and supported link intent routes within the Glyphix package.
++- Pinned upstream source commits, reproducible patches, PCM conversion tests and a separate Android integration build workflow.
++
++## Build
++
++Requirements: Git, Python 3.12+, JDK 21, Android SDK platform 37 and build tools 37.0.0. Keep Glyphix's existing `app/google-services.json` and `app/libs` dependencies. Set `ANDROID_HOME` or `sdk.dir` in the repository's `local.properties`.
++
++```sh
++python3 simpmusic-integration/prepare.py
++bash tests/simpmusic/run.sh
++mkdir -p keystore
++keytool -genkeypair -keystore keystore/debug.keystore -storepass android \
++  -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \
++  -validity 10000 -dname 'CN=Glyphix Development,O=Glyphix,C=IE'
++bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphix:lintDebug
++```
++
++Create the key only if `keystore/debug.keystore` does not already exist. The APK is produced under `app/build/outputs/apk/debug/`. Normal Glyphix builds continue to use `app/build.gradle`; the integration uses `app/build-simpmusic.gradle` with the upstream toolchain and native libraries. No additional account or server is required to prepare the source. Individual upstream features can still require their normal accounts or remote services.
++
++The preparer fetches the exact commits in `upstream.lock.json`, exports clean source snapshots and applies the checked-in patches. Existing developer checkouts can be supplied read-only with `--simpmusic-source PATH --core-source PATH`. It replaces only its own marked `.simpmusic-build` directory and never edits the source checkouts. Generated code is ignored by Git. Patch updates are explicit; neither upstream's moving main branch is used implicitly.
++
++## Validation and outstanding work
++
++Local checks: source preparation with both pinned commits and patch application passed; seven PCM decoder checks passed. A local APK build was attempted but the Gradle wrapper could not reach its distribution endpoint directly (`Network is unreachable`). The GitHub workflow is intended to validate the complete Android graph with JDK 21 and SDK 37; a successful workflow and device tests are still required.
++
++This branch is not a claim of complete feature parity. In particular:
++
++- Android compilation, manifest merging and runtime dependency compatibility have not yet passed verification.
++- Real devices must verify notifications/background playback, search/playback, downloads, authentication, lyrics, navigation, theme switching, recreation and background Glyph output.
++- The default integration uses upstream's FOSS modules. Google Cast, Last.fm credentials and crash reporting are not enabled. No upstream secrets are copied.
++- SimpMusic's launcher widgets and Android-app-only automatic backup scheduler are not ported into Glyphix yet. Account migration/import and backup restore require explicit testing; no existing SimpMusic app data is silently imported.
++- Crossfade taps observe each player after its gain stages; they are not a sample-accurate sum of both output streams. Hardware offload, remote casting and rendered-ahead audio timing require device validation. Existing latency compensation remains available.
++- Smart Source's notification-based recording/cache orchestration is not rewritten to use the built-in playback clock in this change. Built-in music has its own direct PCM source; the existing Smart Source remains separately selectable.
++- Music settings still contain upstream-specific settings and some upstream artwork-led layouts. A complete Glyphix-specific restyling of every secondary screen remains outstanding.
++
++## Device acceptance
++
++1. Install the integrated debug APK, verify Glyphix identity, and open Music. Discover a track, search, play an album and manage a playlist.
++2. Start built-in music visualisation. Verify Glyphs, haptics, flashlight, overlays and optional PC streaming independently, including sample-rate changes and Bluetooth latency calibration.
++3. Navigate to Audio/Settings and use the persistent player. Confirm music and visualisation controls remain independent.
++4. Pause, seek, skip, stop, switch audio sources and rotate/recreate the activity. Check that stale PCM does not resume a stopped visualiser.
++5. Test background/lock-screen playback, notifications, downloaded playback while offline, lyrics and authenticated features.
++6. Review unsupported or upstream-specific settings, crossfade behaviour and licence notices before removing experimental status.
++
++## Source and licensing
++
++- Glyphix: Oliver Lebaigue and contributors, original MIT notice retained at `../LICENSE`.
++- SimpMusic: maxrave-dev and contributors, pinned source `d5842c65cddbe7522553a1d1ff1fabf52d3be7bc`, original GPLv3 text at `licenses/SimpMusic-GPL-3.0.txt`.
++- SimpMusic core: maxrave-dev and contributors, pinned source `2894e549763b8a68225b4456d3290f3227bdbb01`, original licence at `licenses/Core-LICENSE.txt`.
++
++Integration-specific source and upstream patches are provided under GPL-3.0-only. The integrated distribution includes GPL-covered code and must carry its corresponding source, licence text, original notices and modifications. The original Glyphix files retain their MIT grant. This branch does not represent itself as an official SimpMusic build. The build includes licence texts as Android assets and adds native music credits with an expandable GPL text to Glyphix’s existing licence screen.
+diff --git a/simpmusic-integration/licenses/Core-LICENSE.txt b/simpmusic-integration/licenses/Core-LICENSE.txt
+new file mode 100644
+index 0000000..f288702
+--- /dev/null
++++ b/simpmusic-integration/licenses/Core-LICENSE.txt
+@@ -0,0 +1,674 @@
++                    GNU GENERAL PUBLIC LICENSE
++                       Version 3, 29 June 2007
++
++ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
++ Everyone is permitted to copy and distribute verbatim copies
++ of this license document, but changing it is not allowed.
++
++                            Preamble
++
++  The GNU General Public License is a free, copyleft license for
++software and other kinds of works.
++
++  The licenses for most software and other practical works are designed
++to take away your freedom to share and change the works.  By contrast,
++the GNU General Public License is intended to guarantee your freedom to
++share and change all versions of a program--to make sure it remains free
++software for all its users.  We, the Free Software Foundation, use the
++GNU General Public License for most of our software; it applies also to
++any other work released this way by its authors.  You can apply it to
++your programs, too.
++
++  When we speak of free software, we are referring to freedom, not
++price.  Our General Public Licenses are designed to make sure that you
++have the freedom to distribute copies of free software (and charge for
++them if you wish), that you receive source code or can get it if you
++want it, that you can change the software or use pieces of it in new
++free programs, and that you know you can do these things.
++
++  To protect your rights, we need to prevent others from denying you
++these rights or asking you to surrender the rights.  Therefore, you have
++certain responsibilities if you distribute copies of the software, or if
++you modify it: responsibilities to respect the freedom of others.
++
++  For example, if you distribute copies of such a program, whether
++gratis or for a fee, you must pass on to the recipients the same
++freedoms that you received.  You must make sure that they, too, receive
++or can get the source code.  And you must show them these terms so they
++know their rights.
++
++  Developers that use the GNU GPL protect your rights with two steps:
++(1) assert copyright on the software, and (2) offer you this License
++giving you legal permission to copy, distribute and/or modify it.
++
++  For the developers' and authors' protection, the GPL clearly explains
++that there is no warranty for this free software.  For both users' and
++authors' sake, the GPL requires that modified versions be marked as
++changed, so that their problems will not be attributed erroneously to
++authors of previous versions.
++
++  Some devices are designed to deny users access to install or run
++modified versions of the software inside them, although the manufacturer
++can do so.  This is fundamentally incompatible with the aim of
++protecting users' freedom to change the software.  The systematic
++pattern of such abuse occurs in the area of products for individuals to
++use, which is precisely where it is most unacceptable.  Therefore, we
++have designed this version of the GPL to prohibit the practice for those
++products.  If such problems arise substantially in other domains, we
++stand ready to extend this provision to those domains in future versions
++of the GPL, as needed to protect the freedom of users.
++
++  Finally, every program is threatened constantly by software patents.
++States should not allow patents to restrict development and use of
++software on general-purpose computers, but in those that do, we wish to
++avoid the special danger that patents applied to a free program could
++make it effectively proprietary.  To prevent this, the GPL assures that
++patents cannot be used to render the program non-free.
++
++  The precise terms and conditions for copying, distribution and
++modification follow.
++
++                       TERMS AND CONDITIONS
++
++  0. Definitions.
++
++  "This License" refers to version 3 of the GNU General Public License.
++
++  "Copyright" also means copyright-like laws that apply to other kinds of
++works, such as semiconductor masks.
++
++  "The Program" refers to any copyrightable work licensed under this
++License.  Each licensee is addressed as "you".  "Licensees" and
++"recipients" may be individuals or organizations.
++
++  To "modify" a work means to copy from or adapt all or part of the work
++in a fashion requiring copyright permission, other than the making of an
++exact copy.  The resulting work is called a "modified version" of the
++earlier work or a work "based on" the earlier work.
++
++  A "covered work" means either the unmodified Program or a work based
++on the Program.
++
++  To "propagate" a work means to do anything with it that, without
++permission, would make you directly or secondarily liable for
++infringement under applicable copyright law, except executing it on a
++computer or modifying a private copy.  Propagation includes copying,
++distribution (with or without modification), making available to the
++public, and in some countries other activities as well.
++
++  To "convey" a work means any kind of propagation that enables other
++parties to make or receive copies.  Mere interaction with a user through
++a computer network, with no transfer of a copy, is not conveying.
++
++  An interactive user interface displays "Appropriate Legal Notices"
++to the extent that it includes a convenient and prominently visible
++feature that (1) displays an appropriate copyright notice, and (2)
++tells the user that there is no warranty for the work (except to the
++extent that warranties are provided), that licensees may convey the
++work under this License, and how to view a copy of this License.  If
++the interface presents a list of user commands or options, such as a
++menu, a prominent item in the list meets this criterion.
++
++  1. Source Code.
++
++  The "source code" for a work means the preferred form of the work
++for making modifications to it.  "Object code" means any non-source
++form of a work.
++
++  A "Standard Interface" means an interface that either is an official
++standard defined by a recognized standards body, or, in the case of
++interfaces specified for a particular programming language, one that
++is widely used among developers working in that language.
++
++  The "System Libraries" of an executable work include anything, other
++than the work as a whole, that (a) is included in the normal form of
++packaging a Major Component, but which is not part of that Major
++Component, and (b) serves only to enable use of the work with that
++Major Component, or to implement a Standard Interface for which an
++implementation is available to the public in source code form.  A
++"Major Component", in this context, means a major essential component
++(kernel, window system, and so on) of the specific operating system
++(if any) on which the executable work runs, or a compiler used to
++produce the work, or an object code interpreter used to run it.
++
++  The "Corresponding Source" for a work in object code form means all
++the source code needed to generate, install, and (for an executable
++work) run the object code and to modify the work, including scripts to
++control those activities.  However, it does not include the work's
++System Libraries, or general-purpose tools or generally available free
++programs which are used unmodified in performing those activities but
++which are not part of the work.  For example, Corresponding Source
++includes interface definition files associated with source files for
++the work, and the source code for shared libraries and dynamically
++linked subprograms that the work is specifically designed to require,
++such as by intimate data communication or control flow between those
++subprograms and other parts of the work.
++
++  The Corresponding Source need not include anything that users
++can regenerate automatically from other parts of the Corresponding
++Source.
++
++  The Corresponding Source for a work in source code form is that
++same work.
++
++  2. Basic Permissions.
++
++  All rights granted under this License are granted for the term of
++copyright on the Program, and are irrevocable provided the stated
++conditions are met.  This License explicitly affirms your unlimited
++permission to run the unmodified Program.  The output from running a
++covered work is covered by this License only if the output, given its
++content, constitutes a covered work.  This License acknowledges your
++rights of fair use or other equivalent, as provided by copyright law.
++
++  You may make, run and propagate covered works that you do not
++convey, without conditions so long as your license otherwise remains
++in force.  You may convey covered works to others for the sole purpose
++of having them make modifications exclusively for you, or provide you
++with facilities for running those works, provided that you comply with
++the terms of this License in conveying all material for which you do
++not control copyright.  Those thus making or running the covered works
++for you must do so exclusively on your behalf, under your direction
++and control, on terms that prohibit them from making any copies of
++your copyrighted material outside their relationship with you.
++
++  Conveying under any other circumstances is permitted solely under
++the conditions stated below.  Sublicensing is not allowed; section 10
++makes it unnecessary.
++
++  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
++
++  No covered work shall be deemed part of an effective technological
++measure under any applicable law fulfilling obligations under article
++11 of the WIPO copyright treaty adopted on 20 December 1996, or
++similar laws prohibiting or restricting circumvention of such
++measures.
++
++  When you convey a covered work, you waive any legal power to forbid
++circumvention of technological measures to the extent such circumvention
++is effected by exercising rights under this License with respect to
++the covered work, and you disclaim any intention to limit operation or
++modification of the work as a means of enforcing, against the work's
++users, your or third parties' legal rights to forbid circumvention of
++technological measures.
++
++  4. Conveying Verbatim Copies.
++
++  You may convey verbatim copies of the Program's source code as you
++receive it, in any medium, provided that you conspicuously and
++appropriately publish on each copy an appropriate copyright notice;
++keep intact all notices stating that this License and any
++non-permissive terms added in accord with section 7 apply to the code;
++keep intact all notices of the absence of any warranty; and give all
++recipients a copy of this License along with the Program.
++
++  You may charge any price or no price for each copy that you convey,
++and you may offer support or warranty protection for a fee.
++
++  5. Conveying Modified Source Versions.
++
++  You may convey a work based on the Program, or the modifications to
++produce it from the Program, in the form of source code under the
++terms of section 4, provided that you also meet all of these conditions:
++
++    a) The work must carry prominent notices stating that you modified
++    it, and giving a relevant date.
++
++    b) The work must carry prominent notices stating that it is
++    released under this License and any conditions added under section
++    7.  This requirement modifies the requirement in section 4 to
++    "keep intact all notices".
++
++    c) You must license the entire work, as a whole, under this
++    License to anyone who comes into possession of a copy.  This
++    License will therefore apply, along with any applicable section 7
++    additional terms, to the whole of the work, and all its parts,
++    regardless of how they are packaged.  This License gives no
++    permission to license the work in any other way, but it does not
++    invalidate such permission if you have separately received it.
++
++    d) If the work has interactive user interfaces, each must display
++    Appropriate Legal Notices; however, if the Program has interactive
++    interfaces that do not display Appropriate Legal Notices, your
++    work need not make them do so.
++
++  A compilation of a covered work with other separate and independent
++works, which are not by their nature extensions of the covered work,
++and which are not combined with it such as to form a larger program,
++in or on a volume of a storage or distribution medium, is called an
++"aggregate" if the compilation and its resulting copyright are not
++used to limit the access or legal rights of the compilation's users
++beyond what the individual works permit.  Inclusion of a covered work
++in an aggregate does not cause this License to apply to the other
++parts of the aggregate.
++
++  6. Conveying Non-Source Forms.
++
++  You may convey a covered work in object code form under the terms
++of sections 4 and 5, provided that you also convey the
++machine-readable Corresponding Source under the terms of this License,
++in one of these ways:
++
++    a) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by the
++    Corresponding Source fixed on a durable physical medium
++    customarily used for software interchange.
++
++    b) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by a
++    written offer, valid for at least three years and valid for as
++    long as you offer spare parts or customer support for that product
++    model, to give anyone who possesses the object code either (1) a
++    copy of the Corresponding Source for all the software in the
++    product that is covered by this License, on a durable physical
++    medium customarily used for software interchange, for a price no
++    more than your reasonable cost of physically performing this
++    conveying of source, or (2) access to copy the
++    Corresponding Source from a network server at no charge.
++
++    c) Convey individual copies of the object code with a copy of the
++    written offer to provide the Corresponding Source.  This
++    alternative is allowed only occasionally and noncommercially, and
++    only if you received the object code with such an offer, in accord
++    with subsection 6b.
++
++    d) Convey the object code by offering access from a designated
++    place (gratis or for a charge), and offer equivalent access to the
++    Corresponding Source in the same way through the same place at no
++    further charge.  You need not require recipients to copy the
++    Corresponding Source along with the object code.  If the place to
++    copy the object code is a network server, the Corresponding Source
++    may be on a different server (operated by you or a third party)
++    that supports equivalent copying facilities, provided you maintain
++    clear directions next to the object code saying where to find the
++    Corresponding Source.  Regardless of what server hosts the
++    Corresponding Source, you remain obligated to ensure that it is
++    available for as long as needed to satisfy these requirements.
++
++    e) Convey the object code using peer-to-peer transmission, provided
++    you inform other peers where the object code and Corresponding
++    Source of the work are being offered to the general public at no
++    charge under subsection 6d.
++
++  A separable portion of the object code, whose source code is excluded
++from the Corresponding Source as a System Library, need not be
++included in conveying the object code work.
++
++  A "User Product" is either (1) a "consumer product", which means any
++tangible personal property which is normally used for personal, family,
++or household purposes, or (2) anything designed or sold for incorporation
++into a dwelling.  In determining whether a product is a consumer product,
++doubtful cases shall be resolved in favor of coverage.  For a particular
++product received by a particular user, "normally used" refers to a
++typical or common use of that class of product, regardless of the status
++of the particular user or of the way in which the particular user
++actually uses, or expects or is expected to use, the product.  A product
++is a consumer product regardless of whether the product has substantial
++commercial, industrial or non-consumer uses, unless such uses represent
++the only significant mode of use of the product.
++
++  "Installation Information" for a User Product means any methods,
++procedures, authorization keys, or other information required to install
++and execute modified versions of a covered work in that User Product from
++a modified version of its Corresponding Source.  The information must
++suffice to ensure that the continued functioning of the modified object
++code is in no case prevented or interfered with solely because
++modification has been made.
++
++  If you convey an object code work under this section in, or with, or
++specifically for use in, a User Product, and the conveying occurs as
++part of a transaction in which the right of possession and use of the
++User Product is transferred to the recipient in perpetuity or for a
++fixed term (regardless of how the transaction is characterized), the
++Corresponding Source conveyed under this section must be accompanied
++by the Installation Information.  But this requirement does not apply
++if neither you nor any third party retains the ability to install
++modified object code on the User Product (for example, the work has
++been installed in ROM).
++
++  The requirement to provide Installation Information does not include a
++requirement to continue to provide support service, warranty, or updates
++for a work that has been modified or installed by the recipient, or for
++the User Product in which it has been modified or installed.  Access to a
++network may be denied when the modification itself materially and
++adversely affects the operation of the network or violates the rules and
++protocols for communication across the network.
++
++  Corresponding Source conveyed, and Installation Information provided,
++in accord with this section must be in a format that is publicly
++documented (and with an implementation available to the public in
++source code form), and must require no special password or key for
++unpacking, reading or copying.
++
++  7. Additional Terms.
++
++  "Additional permissions" are terms that supplement the terms of this
++License by making exceptions from one or more of its conditions.
++Additional permissions that are applicable to the entire Program shall
++be treated as though they were included in this License, to the extent
++that they are valid under applicable law.  If additional permissions
++apply only to part of the Program, that part may be used separately
++under those permissions, but the entire Program remains governed by
++this License without regard to the additional permissions.
++
++  When you convey a copy of a covered work, you may at your option
++remove any additional permissions from that copy, or from any part of
++it.  (Additional permissions may be written to require their own
++removal in certain cases when you modify the work.)  You may place
++additional permissions on material, added by you to a covered work,
++for which you have or can give appropriate copyright permission.
++
++  Notwithstanding any other provision of this License, for material you
++add to a covered work, you may (if authorized by the copyright holders of
++that material) supplement the terms of this License with terms:
++
++    a) Disclaiming warranty or limiting liability differently from the
++    terms of sections 15 and 16 of this License; or
++
++    b) Requiring preservation of specified reasonable legal notices or
++    author attributions in that material or in the Appropriate Legal
++    Notices displayed by works containing it; or
++
++    c) Prohibiting misrepresentation of the origin of that material, or
++    requiring that modified versions of such material be marked in
++    reasonable ways as different from the original version; or
++
++    d) Limiting the use for publicity purposes of names of licensors or
++    authors of the material; or
++
++    e) Declining to grant rights under trademark law for use of some
++    trade names, trademarks, or service marks; or
++
++    f) Requiring indemnification of licensors and authors of that
++    material by anyone who conveys the material (or modified versions of
++    it) with contractual assumptions of liability to the recipient, for
++    any liability that these contractual assumptions directly impose on
++    those licensors and authors.
++
++  All other non-permissive additional terms are considered "further
++restrictions" within the meaning of section 10.  If the Program as you
++received it, or any part of it, contains a notice stating that it is
++governed by this License along with a term that is a further
++restriction, you may remove that term.  If a license document contains
++a further restriction but permits relicensing or conveying under this
++License, you may add to a covered work material governed by the terms
++of that license document, provided that the further restriction does
++not survive such relicensing or conveying.
++
++  If you add terms to a covered work in accord with this section, you
++must place, in the relevant source files, a statement of the
++additional terms that apply to those files, or a notice indicating
++where to find the applicable terms.
++
++  Additional terms, permissive or non-permissive, may be stated in the
++form of a separately written license, or stated as exceptions;
++the above requirements apply either way.
++
++  8. Termination.
++
++  You may not propagate or modify a covered work except as expressly
++provided under this License.  Any attempt otherwise to propagate or
++modify it is void, and will automatically terminate your rights under
++this License (including any patent licenses granted under the third
++paragraph of section 11).
++
++  However, if you cease all violation of this License, then your
++license from a particular copyright holder is reinstated (a)
++provisionally, unless and until the copyright holder explicitly and
++finally terminates your license, and (b) permanently, if the copyright
++holder fails to notify you of the violation by some reasonable means
++prior to 60 days after the cessation.
++
++  Moreover, your license from a particular copyright holder is
++reinstated permanently if the copyright holder notifies you of the
++violation by some reasonable means, this is the first time you have
++received notice of violation of this License (for any work) from that
++copyright holder, and you cure the violation prior to 30 days after
++your receipt of the notice.
++
++  Termination of your rights under this section does not terminate the
++licenses of parties who have received copies or rights from you under
++this License.  If your rights have been terminated and not permanently
++reinstated, you do not qualify to receive new licenses for the same
++material under section 10.
++
++  9. Acceptance Not Required for Having Copies.
++
++  You are not required to accept this License in order to receive or
++run a copy of the Program.  Ancillary propagation of a covered work
++occurring solely as a consequence of using peer-to-peer transmission
++to receive a copy likewise does not require acceptance.  However,
++nothing other than this License grants you permission to propagate or
++modify any covered work.  These actions infringe copyright if you do
++not accept this License.  Therefore, by modifying or propagating a
++covered work, you indicate your acceptance of this License to do so.
++
++  10. Automatic Licensing of Downstream Recipients.
++
++  Each time you convey a covered work, the recipient automatically
++receives a license from the original licensors, to run, modify and
++propagate that work, subject to this License.  You are not responsible
++for enforcing compliance by third parties with this License.
++
++  An "entity transaction" is a transaction transferring control of an
++organization, or substantially all assets of one, or subdividing an
++organization, or merging organizations.  If propagation of a covered
++work results from an entity transaction, each party to that
++transaction who receives a copy of the work also receives whatever
++licenses to the work the party's predecessor in interest had or could
++give under the previous paragraph, plus a right to possession of the
++Corresponding Source of the work from the predecessor in interest, if
++the predecessor has it or can get it with reasonable efforts.
++
++  You may not impose any further restrictions on the exercise of the
++rights granted or affirmed under this License.  For example, you may
++not impose a license fee, royalty, or other charge for exercise of
++rights granted under this License, and you may not initiate litigation
++(including a cross-claim or counterclaim in a lawsuit) alleging that
++any patent claim is infringed by making, using, selling, offering for
++sale, or importing the Program or any portion of it.
++
++  11. Patents.
++
++  A "contributor" is a copyright holder who authorizes use under this
++License of the Program or a work on which the Program is based.  The
++work thus licensed is called the contributor's "contributor version".
++
++  A contributor's "essential patent claims" are all patent claims
++owned or controlled by the contributor, whether already acquired or
++hereafter acquired, that would be infringed by some manner, permitted
++by this License, of making, using, or selling its contributor version,
++but do not include claims that would be infringed only as a
++consequence of further modification of the contributor version.  For
++purposes of this definition, "control" includes the right to grant
++patent sublicenses in a manner consistent with the requirements of
++this License.
++
++  Each contributor grants you a non-exclusive, worldwide, royalty-free
++patent license under the contributor's essential patent claims, to
++make, use, sell, offer for sale, import and otherwise run, modify and
++propagate the contents of its contributor version.
++
++  In the following three paragraphs, a "patent license" is any express
++agreement or commitment, however denominated, not to enforce a patent
++(such as an express permission to practice a patent or covenant not to
++sue for patent infringement).  To "grant" such a patent license to a
++party means to make such an agreement or commitment not to enforce a
++patent against the party.
++
++  If you convey a covered work, knowingly relying on a patent license,
++and the Corresponding Source of the work is not available for anyone
++to copy, free of charge and under the terms of this License, through a
++publicly available network server or other readily accessible means,
++then you must either (1) cause the Corresponding Source to be so
++available, or (2) arrange to deprive yourself of the benefit of the
++patent license for this particular work, or (3) arrange, in a manner
++consistent with the requirements of this License, to extend the patent
++license to downstream recipients.  "Knowingly relying" means you have
++actual knowledge that, but for the patent license, your conveying the
++covered work in a country, or your recipient's use of the covered work
++in a country, would infringe one or more identifiable patents in that
++country that you have reason to believe are valid.
++
++  If, pursuant to or in connection with a single transaction or
++arrangement, you convey, or propagate by procuring conveyance of, a
++covered work, and grant a patent license to some of the parties
++receiving the covered work authorizing them to use, propagate, modify
++or convey a specific copy of the covered work, then the patent license
++you grant is automatically extended to all recipients of the covered
++work and works based on it.
++
++  A patent license is "discriminatory" if it does not include within
++the scope of its coverage, prohibits the exercise of, or is
++conditioned on the non-exercise of one or more of the rights that are
++specifically granted under this License.  You may not convey a covered
++work if you are a party to an arrangement with a third party that is
++in the business of distributing software, under which you make payment
++to the third party based on the extent of your activity of conveying
++the work, and under which the third party grants, to any of the
++parties who would receive the covered work from you, a discriminatory
++patent license (a) in connection with copies of the covered work
++conveyed by you (or copies made from those copies), or (b) primarily
++for and in connection with specific products or compilations that
++contain the covered work, unless you entered into that arrangement,
++or that patent license was granted, prior to 28 March 2007.
++
++  Nothing in this License shall be construed as excluding or limiting
++any implied license or other defenses to infringement that may
++otherwise be available to you under applicable patent law.
++
++  12. No Surrender of Others' Freedom.
++
++  If conditions are imposed on you (whether by court order, agreement or
++otherwise) that contradict the conditions of this License, they do not
++excuse you from the conditions of this License.  If you cannot convey a
++covered work so as to satisfy simultaneously your obligations under this
++License and any other pertinent obligations, then as a consequence you may
++not convey it at all.  For example, if you agree to terms that obligate you
++to collect a royalty for further conveying from those to whom you convey
++the Program, the only way you could satisfy both those terms and this
++License would be to refrain entirely from conveying the Program.
++
++  13. Use with the GNU Affero General Public License.
++
++  Notwithstanding any other provision of this License, you have
++permission to link or combine any covered work with a work licensed
++under version 3 of the GNU Affero General Public License into a single
++combined work, and to convey the resulting work.  The terms of this
++License will continue to apply to the part which is the covered work,
++but the special requirements of the GNU Affero General Public License,
++section 13, concerning interaction through a network will apply to the
++combination as such.
++
++  14. Revised Versions of this License.
++
++  The Free Software Foundation may publish revised and/or new versions of
++the GNU General Public License from time to time.  Such new versions will
++be similar in spirit to the present version, but may differ in detail to
++address new problems or concerns.
++
++  Each version is given a distinguishing version number.  If the
++Program specifies that a certain numbered version of the GNU General
++Public License "or any later version" applies to it, you have the
++option of following the terms and conditions either of that numbered
++version or of any later version published by the Free Software
++Foundation.  If the Program does not specify a version number of the
++GNU General Public License, you may choose any version ever published
++by the Free Software Foundation.
++
++  If the Program specifies that a proxy can decide which future
++versions of the GNU General Public License can be used, that proxy's
++public statement of acceptance of a version permanently authorizes you
++to choose that version for the Program.
++
++  Later license versions may give you additional or different
++permissions.  However, no additional obligations are imposed on any
++author or copyright holder as a result of your choosing to follow a
++later version.
++
++  15. Disclaimer of Warranty.
++
++  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
++APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
++HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
++OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
++THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
++IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
++ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
++
++  16. Limitation of Liability.
++
++  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
++WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
++THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
++GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
++USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
++DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
++PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
++EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGES.
++
++  17. Interpretation of Sections 15 and 16.
++
++  If the disclaimer of warranty and limitation of liability provided
++above cannot be given local legal effect according to their terms,
++reviewing courts shall apply local law that most closely approximates
++an absolute waiver of all civil liability in connection with the
++Program, unless a warranty or assumption of liability accompanies a
++copy of the Program in return for a fee.
++
++                     END OF TERMS AND CONDITIONS
++
++            How to Apply These Terms to Your New Programs
++
++  If you develop a new program, and you want it to be of the greatest
++possible use to the public, the best way to achieve this is to make it
++free software which everyone can redistribute and change under these terms.
++
++  To do so, attach the following notices to the program.  It is safest
++to attach them to the start of each source file to most effectively
++state the exclusion of warranty; and each file should have at least
++the "copyright" line and a pointer to where the full notice is found.
++
++    <one line to give the program's name and a brief idea of what it does.>
++    Copyright (C) <year>  <name of author>
++
++    This program is free software: you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation, either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <https://www.gnu.org/licenses/>.
++
++Also add information on how to contact you by electronic and paper mail.
++
++  If the program does terminal interaction, make it output a short
++notice like this when it starts in an interactive mode:
++
++    <program>  Copyright (C) <year>  <name of author>
++    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
++    This is free software, and you are welcome to redistribute it
++    under certain conditions; type `show c' for details.
++
++The hypothetical commands `show w' and `show c' should show the appropriate
++parts of the General Public License.  Of course, your program's commands
++might be different; for a GUI interface, you would use an "about box".
++
++  You should also get your employer (if you work as a programmer) or school,
++if any, to sign a "copyright disclaimer" for the program, if necessary.
++For more information on this, and how to apply and follow the GNU GPL, see
++<https://www.gnu.org/licenses/>.
++
++  The GNU General Public License does not permit incorporating your program
++into proprietary programs.  If your program is a subroutine library, you
++may consider it more useful to permit linking proprietary applications with
++the library.  If this is what you want to do, use the GNU Lesser General
++Public License instead of this License.  But first, please read
++<https://www.gnu.org/licenses/why-not-lgpl.html>.
+diff --git a/simpmusic-integration/licenses/SimpMusic-GPL-3.0.txt b/simpmusic-integration/licenses/SimpMusic-GPL-3.0.txt
+new file mode 100644
+index 0000000..f288702
+--- /dev/null
++++ b/simpmusic-integration/licenses/SimpMusic-GPL-3.0.txt
+@@ -0,0 +1,674 @@
++                    GNU GENERAL PUBLIC LICENSE
++                       Version 3, 29 June 2007
++
++ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
++ Everyone is permitted to copy and distribute verbatim copies
++ of this license document, but changing it is not allowed.
++
++                            Preamble
++
++  The GNU General Public License is a free, copyleft license for
++software and other kinds of works.
++
++  The licenses for most software and other practical works are designed
++to take away your freedom to share and change the works.  By contrast,
++the GNU General Public License is intended to guarantee your freedom to
++share and change all versions of a program--to make sure it remains free
++software for all its users.  We, the Free Software Foundation, use the
++GNU General Public License for most of our software; it applies also to
++any other work released this way by its authors.  You can apply it to
++your programs, too.
++
++  When we speak of free software, we are referring to freedom, not
++price.  Our General Public Licenses are designed to make sure that you
++have the freedom to distribute copies of free software (and charge for
++them if you wish), that you receive source code or can get it if you
++want it, that you can change the software or use pieces of it in new
++free programs, and that you know you can do these things.
++
++  To protect your rights, we need to prevent others from denying you
++these rights or asking you to surrender the rights.  Therefore, you have
++certain responsibilities if you distribute copies of the software, or if
++you modify it: responsibilities to respect the freedom of others.
++
++  For example, if you distribute copies of such a program, whether
++gratis or for a fee, you must pass on to the recipients the same
++freedoms that you received.  You must make sure that they, too, receive
++or can get the source code.  And you must show them these terms so they
++know their rights.
++
++  Developers that use the GNU GPL protect your rights with two steps:
++(1) assert copyright on the software, and (2) offer you this License
++giving you legal permission to copy, distribute and/or modify it.
++
++  For the developers' and authors' protection, the GPL clearly explains
++that there is no warranty for this free software.  For both users' and
++authors' sake, the GPL requires that modified versions be marked as
++changed, so that their problems will not be attributed erroneously to
++authors of previous versions.
++
++  Some devices are designed to deny users access to install or run
++modified versions of the software inside them, although the manufacturer
++can do so.  This is fundamentally incompatible with the aim of
++protecting users' freedom to change the software.  The systematic
++pattern of such abuse occurs in the area of products for individuals to
++use, which is precisely where it is most unacceptable.  Therefore, we
++have designed this version of the GPL to prohibit the practice for those
++products.  If such problems arise substantially in other domains, we
++stand ready to extend this provision to those domains in future versions
++of the GPL, as needed to protect the freedom of users.
++
++  Finally, every program is threatened constantly by software patents.
++States should not allow patents to restrict development and use of
++software on general-purpose computers, but in those that do, we wish to
++avoid the special danger that patents applied to a free program could
++make it effectively proprietary.  To prevent this, the GPL assures that
++patents cannot be used to render the program non-free.
++
++  The precise terms and conditions for copying, distribution and
++modification follow.
++
++                       TERMS AND CONDITIONS
++
++  0. Definitions.
++
++  "This License" refers to version 3 of the GNU General Public License.
++
++  "Copyright" also means copyright-like laws that apply to other kinds of
++works, such as semiconductor masks.
++
++  "The Program" refers to any copyrightable work licensed under this
++License.  Each licensee is addressed as "you".  "Licensees" and
++"recipients" may be individuals or organizations.
++
++  To "modify" a work means to copy from or adapt all or part of the work
++in a fashion requiring copyright permission, other than the making of an
++exact copy.  The resulting work is called a "modified version" of the
++earlier work or a work "based on" the earlier work.
++
++  A "covered work" means either the unmodified Program or a work based
++on the Program.
++
++  To "propagate" a work means to do anything with it that, without
++permission, would make you directly or secondarily liable for
++infringement under applicable copyright law, except executing it on a
++computer or modifying a private copy.  Propagation includes copying,
++distribution (with or without modification), making available to the
++public, and in some countries other activities as well.
++
++  To "convey" a work means any kind of propagation that enables other
++parties to make or receive copies.  Mere interaction with a user through
++a computer network, with no transfer of a copy, is not conveying.
++
++  An interactive user interface displays "Appropriate Legal Notices"
++to the extent that it includes a convenient and prominently visible
++feature that (1) displays an appropriate copyright notice, and (2)
++tells the user that there is no warranty for the work (except to the
++extent that warranties are provided), that licensees may convey the
++work under this License, and how to view a copy of this License.  If
++the interface presents a list of user commands or options, such as a
++menu, a prominent item in the list meets this criterion.
++
++  1. Source Code.
++
++  The "source code" for a work means the preferred form of the work
++for making modifications to it.  "Object code" means any non-source
++form of a work.
++
++  A "Standard Interface" means an interface that either is an official
++standard defined by a recognized standards body, or, in the case of
++interfaces specified for a particular programming language, one that
++is widely used among developers working in that language.
++
++  The "System Libraries" of an executable work include anything, other
++than the work as a whole, that (a) is included in the normal form of
++packaging a Major Component, but which is not part of that Major
++Component, and (b) serves only to enable use of the work with that
++Major Component, or to implement a Standard Interface for which an
++implementation is available to the public in source code form.  A
++"Major Component", in this context, means a major essential component
++(kernel, window system, and so on) of the specific operating system
++(if any) on which the executable work runs, or a compiler used to
++produce the work, or an object code interpreter used to run it.
++
++  The "Corresponding Source" for a work in object code form means all
++the source code needed to generate, install, and (for an executable
++work) run the object code and to modify the work, including scripts to
++control those activities.  However, it does not include the work's
++System Libraries, or general-purpose tools or generally available free
++programs which are used unmodified in performing those activities but
++which are not part of the work.  For example, Corresponding Source
++includes interface definition files associated with source files for
++the work, and the source code for shared libraries and dynamically
++linked subprograms that the work is specifically designed to require,
++such as by intimate data communication or control flow between those
++subprograms and other parts of the work.
++
++  The Corresponding Source need not include anything that users
++can regenerate automatically from other parts of the Corresponding
++Source.
++
++  The Corresponding Source for a work in source code form is that
++same work.
++
++  2. Basic Permissions.
++
++  All rights granted under this License are granted for the term of
++copyright on the Program, and are irrevocable provided the stated
++conditions are met.  This License explicitly affirms your unlimited
++permission to run the unmodified Program.  The output from running a
++covered work is covered by this License only if the output, given its
++content, constitutes a covered work.  This License acknowledges your
++rights of fair use or other equivalent, as provided by copyright law.
++
++  You may make, run and propagate covered works that you do not
++convey, without conditions so long as your license otherwise remains
++in force.  You may convey covered works to others for the sole purpose
++of having them make modifications exclusively for you, or provide you
++with facilities for running those works, provided that you comply with
++the terms of this License in conveying all material for which you do
++not control copyright.  Those thus making or running the covered works
++for you must do so exclusively on your behalf, under your direction
++and control, on terms that prohibit them from making any copies of
++your copyrighted material outside their relationship with you.
++
++  Conveying under any other circumstances is permitted solely under
++the conditions stated below.  Sublicensing is not allowed; section 10
++makes it unnecessary.
++
++  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
++
++  No covered work shall be deemed part of an effective technological
++measure under any applicable law fulfilling obligations under article
++11 of the WIPO copyright treaty adopted on 20 December 1996, or
++similar laws prohibiting or restricting circumvention of such
++measures.
++
++  When you convey a covered work, you waive any legal power to forbid
++circumvention of technological measures to the extent such circumvention
++is effected by exercising rights under this License with respect to
++the covered work, and you disclaim any intention to limit operation or
++modification of the work as a means of enforcing, against the work's
++users, your or third parties' legal rights to forbid circumvention of
++technological measures.
++
++  4. Conveying Verbatim Copies.
++
++  You may convey verbatim copies of the Program's source code as you
++receive it, in any medium, provided that you conspicuously and
++appropriately publish on each copy an appropriate copyright notice;
++keep intact all notices stating that this License and any
++non-permissive terms added in accord with section 7 apply to the code;
++keep intact all notices of the absence of any warranty; and give all
++recipients a copy of this License along with the Program.
++
++  You may charge any price or no price for each copy that you convey,
++and you may offer support or warranty protection for a fee.
++
++  5. Conveying Modified Source Versions.
++
++  You may convey a work based on the Program, or the modifications to
++produce it from the Program, in the form of source code under the
++terms of section 4, provided that you also meet all of these conditions:
++
++    a) The work must carry prominent notices stating that you modified
++    it, and giving a relevant date.
++
++    b) The work must carry prominent notices stating that it is
++    released under this License and any conditions added under section
++    7.  This requirement modifies the requirement in section 4 to
++    "keep intact all notices".
++
++    c) You must license the entire work, as a whole, under this
++    License to anyone who comes into possession of a copy.  This
++    License will therefore apply, along with any applicable section 7
++    additional terms, to the whole of the work, and all its parts,
++    regardless of how they are packaged.  This License gives no
++    permission to license the work in any other way, but it does not
++    invalidate such permission if you have separately received it.
++
++    d) If the work has interactive user interfaces, each must display
++    Appropriate Legal Notices; however, if the Program has interactive
++    interfaces that do not display Appropriate Legal Notices, your
++    work need not make them do so.
++
++  A compilation of a covered work with other separate and independent
++works, which are not by their nature extensions of the covered work,
++and which are not combined with it such as to form a larger program,
++in or on a volume of a storage or distribution medium, is called an
++"aggregate" if the compilation and its resulting copyright are not
++used to limit the access or legal rights of the compilation's users
++beyond what the individual works permit.  Inclusion of a covered work
++in an aggregate does not cause this License to apply to the other
++parts of the aggregate.
++
++  6. Conveying Non-Source Forms.
++
++  You may convey a covered work in object code form under the terms
++of sections 4 and 5, provided that you also convey the
++machine-readable Corresponding Source under the terms of this License,
++in one of these ways:
++
++    a) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by the
++    Corresponding Source fixed on a durable physical medium
++    customarily used for software interchange.
++
++    b) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by a
++    written offer, valid for at least three years and valid for as
++    long as you offer spare parts or customer support for that product
++    model, to give anyone who possesses the object code either (1) a
++    copy of the Corresponding Source for all the software in the
++    product that is covered by this License, on a durable physical
++    medium customarily used for software interchange, for a price no
++    more than your reasonable cost of physically performing this
++    conveying of source, or (2) access to copy the
++    Corresponding Source from a network server at no charge.
++
++    c) Convey individual copies of the object code with a copy of the
++    written offer to provide the Corresponding Source.  This
++    alternative is allowed only occasionally and noncommercially, and
++    only if you received the object code with such an offer, in accord
++    with subsection 6b.
++
++    d) Convey the object code by offering access from a designated
++    place (gratis or for a charge), and offer equivalent access to the
++    Corresponding Source in the same way through the same place at no
++    further charge.  You need not require recipients to copy the
++    Corresponding Source along with the object code.  If the place to
++    copy the object code is a network server, the Corresponding Source
++    may be on a different server (operated by you or a third party)
++    that supports equivalent copying facilities, provided you maintain
++    clear directions next to the object code saying where to find the
++    Corresponding Source.  Regardless of what server hosts the
++    Corresponding Source, you remain obligated to ensure that it is
++    available for as long as needed to satisfy these requirements.
++
++    e) Convey the object code using peer-to-peer transmission, provided
++    you inform other peers where the object code and Corresponding
++    Source of the work are being offered to the general public at no
++    charge under subsection 6d.
++
++  A separable portion of the object code, whose source code is excluded
++from the Corresponding Source as a System Library, need not be
++included in conveying the object code work.
++
++  A "User Product" is either (1) a "consumer product", which means any
++tangible personal property which is normally used for personal, family,
++or household purposes, or (2) anything designed or sold for incorporation
++into a dwelling.  In determining whether a product is a consumer product,
++doubtful cases shall be resolved in favor of coverage.  For a particular
++product received by a particular user, "normally used" refers to a
++typical or common use of that class of product, regardless of the status
++of the particular user or of the way in which the particular user
++actually uses, or expects or is expected to use, the product.  A product
++is a consumer product regardless of whether the product has substantial
++commercial, industrial or non-consumer uses, unless such uses represent
++the only significant mode of use of the product.
++
++  "Installation Information" for a User Product means any methods,
++procedures, authorization keys, or other information required to install
++and execute modified versions of a covered work in that User Product from
++a modified version of its Corresponding Source.  The information must
++suffice to ensure that the continued functioning of the modified object
++code is in no case prevented or interfered with solely because
++modification has been made.
++
++  If you convey an object code work under this section in, or with, or
++specifically for use in, a User Product, and the conveying occurs as
++part of a transaction in which the right of possession and use of the
++User Product is transferred to the recipient in perpetuity or for a
++fixed term (regardless of how the transaction is characterized), the
++Corresponding Source conveyed under this section must be accompanied
++by the Installation Information.  But this requirement does not apply
++if neither you nor any third party retains the ability to install
++modified object code on the User Product (for example, the work has
++been installed in ROM).
++
++  The requirement to provide Installation Information does not include a
++requirement to continue to provide support service, warranty, or updates
++for a work that has been modified or installed by the recipient, or for
++the User Product in which it has been modified or installed.  Access to a
++network may be denied when the modification itself materially and
++adversely affects the operation of the network or violates the rules and
++protocols for communication across the network.
++
++  Corresponding Source conveyed, and Installation Information provided,
++in accord with this section must be in a format that is publicly
++documented (and with an implementation available to the public in
++source code form), and must require no special password or key for
++unpacking, reading or copying.
++
++  7. Additional Terms.
++
++  "Additional permissions" are terms that supplement the terms of this
++License by making exceptions from one or more of its conditions.
++Additional permissions that are applicable to the entire Program shall
++be treated as though they were included in this License, to the extent
++that they are valid under applicable law.  If additional permissions
++apply only to part of the Program, that part may be used separately
++under those permissions, but the entire Program remains governed by
++this License without regard to the additional permissions.
++
++  When you convey a copy of a covered work, you may at your option
++remove any additional permissions from that copy, or from any part of
++it.  (Additional permissions may be written to require their own
++removal in certain cases when you modify the work.)  You may place
++additional permissions on material, added by you to a covered work,
++for which you have or can give appropriate copyright permission.
++
++  Notwithstanding any other provision of this License, for material you
++add to a covered work, you may (if authorized by the copyright holders of
++that material) supplement the terms of this License with terms:
++
++    a) Disclaiming warranty or limiting liability differently from the
++    terms of sections 15 and 16 of this License; or
++
++    b) Requiring preservation of specified reasonable legal notices or
++    author attributions in that material or in the Appropriate Legal
++    Notices displayed by works containing it; or
++
++    c) Prohibiting misrepresentation of the origin of that material, or
++    requiring that modified versions of such material be marked in
++    reasonable ways as different from the original version; or
++
++    d) Limiting the use for publicity purposes of names of licensors or
++    authors of the material; or
++
++    e) Declining to grant rights under trademark law for use of some
++    trade names, trademarks, or service marks; or
++
++    f) Requiring indemnification of licensors and authors of that
++    material by anyone who conveys the material (or modified versions of
++    it) with contractual assumptions of liability to the recipient, for
++    any liability that these contractual assumptions directly impose on
++    those licensors and authors.
++
++  All other non-permissive additional terms are considered "further
++restrictions" within the meaning of section 10.  If the Program as you
++received it, or any part of it, contains a notice stating that it is
++governed by this License along with a term that is a further
++restriction, you may remove that term.  If a license document contains
++a further restriction but permits relicensing or conveying under this
++License, you may add to a covered work material governed by the terms
++of that license document, provided that the further restriction does
++not survive such relicensing or conveying.
++
++  If you add terms to a covered work in accord with this section, you
++must place, in the relevant source files, a statement of the
++additional terms that apply to those files, or a notice indicating
++where to find the applicable terms.
++
++  Additional terms, permissive or non-permissive, may be stated in the
++form of a separately written license, or stated as exceptions;
++the above requirements apply either way.
++
++  8. Termination.
++
++  You may not propagate or modify a covered work except as expressly
++provided under this License.  Any attempt otherwise to propagate or
++modify it is void, and will automatically terminate your rights under
++this License (including any patent licenses granted under the third
++paragraph of section 11).
++
++  However, if you cease all violation of this License, then your
++license from a particular copyright holder is reinstated (a)
++provisionally, unless and until the copyright holder explicitly and
++finally terminates your license, and (b) permanently, if the copyright
++holder fails to notify you of the violation by some reasonable means
++prior to 60 days after the cessation.
++
++  Moreover, your license from a particular copyright holder is
++reinstated permanently if the copyright holder notifies you of the
++violation by some reasonable means, this is the first time you have
++received notice of violation of this License (for any work) from that
++copyright holder, and you cure the violation prior to 30 days after
++your receipt of the notice.
++
++  Termination of your rights under this section does not terminate the
++licenses of parties who have received copies or rights from you under
++this License.  If your rights have been terminated and not permanently
++reinstated, you do not qualify to receive new licenses for the same
++material under section 10.
++
++  9. Acceptance Not Required for Having Copies.
++
++  You are not required to accept this License in order to receive or
++run a copy of the Program.  Ancillary propagation of a covered work
++occurring solely as a consequence of using peer-to-peer transmission
++to receive a copy likewise does not require acceptance.  However,
++nothing other than this License grants you permission to propagate or
++modify any covered work.  These actions infringe copyright if you do
++not accept this License.  Therefore, by modifying or propagating a
++covered work, you indicate your acceptance of this License to do so.
++
++  10. Automatic Licensing of Downstream Recipients.
++
++  Each time you convey a covered work, the recipient automatically
++receives a license from the original licensors, to run, modify and
++propagate that work, subject to this License.  You are not responsible
++for enforcing compliance by third parties with this License.
++
++  An "entity transaction" is a transaction transferring control of an
++organization, or substantially all assets of one, or subdividing an
++organization, or merging organizations.  If propagation of a covered
++work results from an entity transaction, each party to that
++transaction who receives a copy of the work also receives whatever
++licenses to the work the party's predecessor in interest had or could
++give under the previous paragraph, plus a right to possession of the
++Corresponding Source of the work from the predecessor in interest, if
++the predecessor has it or can get it with reasonable efforts.
++
++  You may not impose any further restrictions on the exercise of the
++rights granted or affirmed under this License.  For example, you may
++not impose a license fee, royalty, or other charge for exercise of
++rights granted under this License, and you may not initiate litigation
++(including a cross-claim or counterclaim in a lawsuit) alleging that
++any patent claim is infringed by making, using, selling, offering for
++sale, or importing the Program or any portion of it.
++
++  11. Patents.
++
++  A "contributor" is a copyright holder who authorizes use under this
++License of the Program or a work on which the Program is based.  The
++work thus licensed is called the contributor's "contributor version".
++
++  A contributor's "essential patent claims" are all patent claims
++owned or controlled by the contributor, whether already acquired or
++hereafter acquired, that would be infringed by some manner, permitted
++by this License, of making, using, or selling its contributor version,
++but do not include claims that would be infringed only as a
++consequence of further modification of the contributor version.  For
++purposes of this definition, "control" includes the right to grant
++patent sublicenses in a manner consistent with the requirements of
++this License.
++
++  Each contributor grants you a non-exclusive, worldwide, royalty-free
++patent license under the contributor's essential patent claims, to
++make, use, sell, offer for sale, import and otherwise run, modify and
++propagate the contents of its contributor version.
++
++  In the following three paragraphs, a "patent license" is any express
++agreement or commitment, however denominated, not to enforce a patent
++(such as an express permission to practice a patent or covenant not to
++sue for patent infringement).  To "grant" such a patent license to a
++party means to make such an agreement or commitment not to enforce a
++patent against the party.
++
++  If you convey a covered work, knowingly relying on a patent license,
++and the Corresponding Source of the work is not available for anyone
++to copy, free of charge and under the terms of this License, through a
++publicly available network server or other readily accessible means,
++then you must either (1) cause the Corresponding Source to be so
++available, or (2) arrange to deprive yourself of the benefit of the
++patent license for this particular work, or (3) arrange, in a manner
++consistent with the requirements of this License, to extend the patent
++license to downstream recipients.  "Knowingly relying" means you have
++actual knowledge that, but for the patent license, your conveying the
++covered work in a country, or your recipient's use of the covered work
++in a country, would infringe one or more identifiable patents in that
++country that you have reason to believe are valid.
++
++  If, pursuant to or in connection with a single transaction or
++arrangement, you convey, or propagate by procuring conveyance of, a
++covered work, and grant a patent license to some of the parties
++receiving the covered work authorizing them to use, propagate, modify
++or convey a specific copy of the covered work, then the patent license
++you grant is automatically extended to all recipients of the covered
++work and works based on it.
++
++  A patent license is "discriminatory" if it does not include within
++the scope of its coverage, prohibits the exercise of, or is
++conditioned on the non-exercise of one or more of the rights that are
++specifically granted under this License.  You may not convey a covered
++work if you are a party to an arrangement with a third party that is
++in the business of distributing software, under which you make payment
++to the third party based on the extent of your activity of conveying
++the work, and under which the third party grants, to any of the
++parties who would receive the covered work from you, a discriminatory
++patent license (a) in connection with copies of the covered work
++conveyed by you (or copies made from those copies), or (b) primarily
++for and in connection with specific products or compilations that
++contain the covered work, unless you entered into that arrangement,
++or that patent license was granted, prior to 28 March 2007.
++
++  Nothing in this License shall be construed as excluding or limiting
++any implied license or other defenses to infringement that may
++otherwise be available to you under applicable patent law.
++
++  12. No Surrender of Others' Freedom.
++
++  If conditions are imposed on you (whether by court order, agreement or
++otherwise) that contradict the conditions of this License, they do not
++excuse you from the conditions of this License.  If you cannot convey a
++covered work so as to satisfy simultaneously your obligations under this
++License and any other pertinent obligations, then as a consequence you may
++not convey it at all.  For example, if you agree to terms that obligate you
++to collect a royalty for further conveying from those to whom you convey
++the Program, the only way you could satisfy both those terms and this
++License would be to refrain entirely from conveying the Program.
++
++  13. Use with the GNU Affero General Public License.
++
++  Notwithstanding any other provision of this License, you have
++permission to link or combine any covered work with a work licensed
++under version 3 of the GNU Affero General Public License into a single
++combined work, and to convey the resulting work.  The terms of this
++License will continue to apply to the part which is the covered work,
++but the special requirements of the GNU Affero General Public License,
++section 13, concerning interaction through a network will apply to the
++combination as such.
++
++  14. Revised Versions of this License.
++
++  The Free Software Foundation may publish revised and/or new versions of
++the GNU General Public License from time to time.  Such new versions will
++be similar in spirit to the present version, but may differ in detail to
++address new problems or concerns.
++
++  Each version is given a distinguishing version number.  If the
++Program specifies that a certain numbered version of the GNU General
++Public License "or any later version" applies to it, you have the
++option of following the terms and conditions either of that numbered
++version or of any later version published by the Free Software
++Foundation.  If the Program does not specify a version number of the
++GNU General Public License, you may choose any version ever published
++by the Free Software Foundation.
++
++  If the Program specifies that a proxy can decide which future
++versions of the GNU General Public License can be used, that proxy's
++public statement of acceptance of a version permanently authorizes you
++to choose that version for the Program.
++
++  Later license versions may give you additional or different
++permissions.  However, no additional obligations are imposed on any
++author or copyright holder as a result of your choosing to follow a
++later version.
++
++  15. Disclaimer of Warranty.
++
++  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
++APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
++HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
++OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
++THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
++IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
++ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
++
++  16. Limitation of Liability.
++
++  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
++WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
++THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
++GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
++USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
++DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
++PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
++EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGES.
++
++  17. Interpretation of Sections 15 and 16.
++
++  If the disclaimer of warranty and limitation of liability provided
++above cannot be given local legal effect according to their terms,
++reviewing courts shall apply local law that most closely approximates
++an absolute waiver of all civil liability in connection with the
++Program, unless a warranty or assumption of liability accompanies a
++copy of the Program in return for a fee.
++
++                     END OF TERMS AND CONDITIONS
++
++            How to Apply These Terms to Your New Programs
++
++  If you develop a new program, and you want it to be of the greatest
++possible use to the public, the best way to achieve this is to make it
++free software which everyone can redistribute and change under these terms.
++
++  To do so, attach the following notices to the program.  It is safest
++to attach them to the start of each source file to most effectively
++state the exclusion of warranty; and each file should have at least
++the "copyright" line and a pointer to where the full notice is found.
++
++    <one line to give the program's name and a brief idea of what it does.>
++    Copyright (C) <year>  <name of author>
++
++    This program is free software: you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation, either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <https://www.gnu.org/licenses/>.
++
++Also add information on how to contact you by electronic and paper mail.
++
++  If the program does terminal interaction, make it output a short
++notice like this when it starts in an interactive mode:
++
++    <program>  Copyright (C) <year>  <name of author>
++    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
++    This is free software, and you are welcome to redistribute it
++    under certain conditions; type `show c' for details.
++
++The hypothetical commands `show w' and `show c' should show the appropriate
++parts of the General Public License.  Of course, your program's commands
++might be different; for a GUI interface, you would use an "about box".
++
++  You should also get your employer (if you work as a programmer) or school,
++if any, to sign a "copyright disclaimer" for the program, if necessary.
++For more information on this, and how to apply and follow the GNU GPL, see
++<https://www.gnu.org/licenses/>.
++
++  The GNU General Public License does not permit incorporating your program
++into proprietary programs.  If your program is a subroutine library, you
++may consider it more useful to permit linking proprietary applications with
++the library.  If this is what you want to do, use the GNU Lesser General
++Public License instead of this License.  But first, please read
++<https://www.gnu.org/licenses/why-not-lgpl.html>.
+diff --git a/simpmusic-integration/patches/core.patch b/simpmusic-integration/patches/core.patch
+new file mode 100644
+index 0000000..8cb1553
+--- /dev/null
++++ b/simpmusic-integration/patches/core.patch
+@@ -0,0 +1,112 @@
++diff --git a/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmAudioProcessor.kt b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmAudioProcessor.kt
++new file mode 100644
++index 0000000..69ffc94
++--- /dev/null
+++++ b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmAudioProcessor.kt
++@@ -0,0 +1,33 @@
+++// SPDX-License-Identifier: GPL-3.0-only
+++package com.maxrave.media3.audio
+++
+++import androidx.media3.common.C
+++import androidx.media3.common.audio.AudioProcessor
+++import androidx.media3.common.audio.BaseAudioProcessor
+++import androidx.media3.common.util.UnstableApi
+++import java.nio.ByteBuffer
+++
+++object GlyphixPcmBridge {
+++    @Volatile var sink: ((ShortArray, Int) -> Unit)? = null
+++}
+++
+++/** Pass-through tap. FFT and device work run on Glyphix's worker, never here. */
+++@UnstableApi
+++class GlyphixPcmAudioProcessor : BaseAudioProcessor() {
+++    override fun onConfigure(format: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat =
+++        if (format.encoding == C.ENCODING_PCM_16BIT || format.encoding == C.ENCODING_PCM_FLOAT) format
+++        else AudioProcessor.AudioFormat.NOT_SET
+++
+++    override fun queueInput(input: ByteBuffer) {
+++        val output = replaceOutputBuffer(input.remaining())
+++        output.put(input).flip()
+++        val listener = GlyphixPcmBridge.sink ?: return
+++        val copy = output.asReadOnlyBuffer()
+++        val floats = inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT
+++        while (copy.remaining() >= inputAudioFormat.channelCount * if (floats) 4 else 2) {
+++            val mono = GlyphixPcmDecoder.readMono(copy, inputAudioFormat.channelCount, floats, 8192)
+++            // A failed visualisation must not interrupt playback.
+++            try { listener(mono, inputAudioFormat.sampleRate) } catch (_: RuntimeException) { }
+++        }
+++    }
+++}
++diff --git a/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmDecoder.java b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmDecoder.java
++new file mode 100644
++index 0000000..2648a0c
++--- /dev/null
+++++ b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmDecoder.java
++@@ -0,0 +1,27 @@
+++// SPDX-License-Identifier: GPL-3.0-only
+++package com.maxrave.media3.audio;
+++
+++import java.nio.ByteBuffer;
+++import java.nio.ByteOrder;
+++
+++/** Android-independent PCM downmix, shared by the tap and host-side tests. */
+++public final class GlyphixPcmDecoder {
+++    private GlyphixPcmDecoder() {}
+++    public static short[] readMono(ByteBuffer input, int channels, boolean floats, int maxFrames) {
+++        if (channels < 1 || channels > 32 || maxFrames < 1) throw new IllegalArgumentException("Invalid PCM format");
+++        input.order(ByteOrder.LITTLE_ENDIAN);
+++        int count = Math.min(maxFrames, input.remaining() / (channels * (floats ? 4 : 2)));
+++        short[] result = new short[count];
+++        for (int frame = 0; frame < count; frame++) {
+++            double sum = 0;
+++            for (int channel = 0; channel < channels; channel++) {
+++                if (floats) {
+++                    float value = input.getFloat();
+++                    sum += Float.isFinite(value) ? Math.max(-1.0, Math.min(1.0, value)) * 32767.0 : 0.0;
+++                } else sum += input.getShort();
+++            }
+++            result[frame] = (short) Math.max(-32768, Math.min(32767, Math.round(sum / channels)));
+++        }
+++        return result;
+++    }
+++}
++diff --git a/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt b/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt
++index f98c3d9..29e30c4 100644
++--- a/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt
+++++ b/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt
++@@ -490,11 +490,11 @@ private fun provideRendererFactory(context: Context): DefaultRenderersFactory =
++         ): AudioSink =
++             DefaultAudioSink
++                 .Builder(context)
++-                .setEnableFloatOutput(enableFloatOutput)
+++                .setEnableFloatOutput(false)
++                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
++                 .setAudioProcessorChain(
++                     DefaultAudioSink.DefaultAudioProcessorChain(
++-                        emptyArray(),
+++                        arrayOf(com.maxrave.media3.audio.GlyphixPcmAudioProcessor()),
++                         SilenceSkippingAudioProcessor(
++                             2_000_000,
++                             (20_000 / 2_000_000).toFloat(),
++diff --git a/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt b/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt
++index 3b789f1..594555a 100644
++--- a/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt
+++++ b/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt
++@@ -580,7 +580,7 @@ internal class CrossfadeExoPlayerAdapter(
++                 ): AudioSink =
++                     DefaultAudioSink
++                         .Builder(context)
++-                        .setEnableFloatOutput(enableFloatOutput)
+++                        .setEnableFloatOutput(false)
++                         .setEnableAudioOutputPlaybackParameters(enableAudioTrackPlaybackParams)
++                         .setAudioProcessorChain(
++                             DefaultAudioSink.DefaultAudioProcessorChain(
++@@ -593,7 +593,7 @@ internal class CrossfadeExoPlayerAdapter(
++                                 // crossfade has to be able to sweep them out along with it rather
++                                 // than the other way round. The sleep fade stays last, because it
++                                 // is the master attenuation and has to survive everything above.
++-                                arrayOf(equalizer, echo, reverb, crossfadeFilter, sleepFade),
+++                                arrayOf(equalizer, echo, reverb, crossfadeFilter, sleepFade, com.maxrave.media3.audio.GlyphixPcmAudioProcessor()),
++                                 SilenceSkippingAudioProcessor(
++                                     2_000_000,
++                                     (20_000 / 2_000_000).toFloat(),
+diff --git a/simpmusic-integration/patches/simpmusic.patch b/simpmusic-integration/patches/simpmusic.patch
+new file mode 100644
+index 0000000..3171701
+--- /dev/null
++++ b/simpmusic-integration/patches/simpmusic.patch
+@@ -0,0 +1,175 @@
++diff --git a/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/OpenUrl.android.kt b/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/OpenUrl.android.kt
++index 471a975..413b2ac 100644
++--- a/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/OpenUrl.android.kt
+++++ b/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/OpenUrl.android.kt
++@@ -2,12 +2,12 @@ package com.maxrave.simpmusic.expect
++ 
++ import android.content.Intent
++ import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
++-import androidx.appcompat.app.AppCompatActivity
+++import androidx.activity.ComponentActivity
++ import androidx.core.net.toUri
++ import org.koin.mp.KoinPlatform.getKoin
++ 
++ actual fun openUrl(url: String) {
++-    val context: AppCompatActivity = getKoin().get()
+++    val context: ComponentActivity = getKoin().get()
++     val browserIntent =
++         Intent(
++             Intent.ACTION_VIEW,
++@@ -21,7 +21,7 @@ actual fun shareUrl(
++     title: String,
++     url: String,
++ ) {
++-    val context: AppCompatActivity = getKoin().get()
+++    val context: ComponentActivity = getKoin().get()
++     val shareIntent = Intent(Intent.ACTION_SEND)
++     shareIntent.type = "text/plain"
++     shareIntent.putExtra(Intent.EXTRA_TEXT, url)
++diff --git a/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/ShareImage.android.kt b/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/ShareImage.android.kt
++index 554db54..1d4a471 100644
++--- a/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/ShareImage.android.kt
+++++ b/composeApp/src/androidMain/kotlin/com/maxrave/simpmusic/expect/ShareImage.android.kt
++@@ -6,7 +6,7 @@ import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
++ import android.os.Build
++ import android.os.Environment
++ import android.provider.MediaStore
++-import androidx.appcompat.app.AppCompatActivity
+++import androidx.activity.ComponentActivity
++ import androidx.core.content.FileProvider
++ import com.maxrave.logger.Logger
++ import kotlinx.coroutines.Dispatchers
++@@ -24,7 +24,7 @@ actual suspend fun saveImageToDevice(
++ ): Boolean =
++     withContext(Dispatchers.IO) {
++         runCatching {
++-            val context: AppCompatActivity = getKoin().get()
+++            val context: ComponentActivity = getKoin().get()
++             val resolver = context.contentResolver
++             val isScopedStorage = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
++ 
++@@ -70,7 +70,7 @@ actual suspend fun shareImage(
++ ): Boolean =
++     withContext(Dispatchers.IO) {
++         runCatching {
++-            val context: AppCompatActivity = getKoin().get()
+++            val context: ComponentActivity = getKoin().get()
++ 
++             // cacheDir, which provider_paths.xml already exposes as `cache`. The gallery copy is a
++             // separate, explicit action — sharing must not silently write to the user's photos.
++diff --git a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/App.kt b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/App.kt
++index 5d6b90c..d826bb1 100644
++--- a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/App.kt
+++++ b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/App.kt
++@@ -146,6 +146,7 @@ import kotlin.time.ExperimentalTime
++ @Composable
++ fun App(
++     viewModel: SharedViewModel = koinInject(),
+++    inheritHostTheme: Boolean = false,
++     showDesktopNotificationPermissionDialog: Boolean = false,
++     onDismissDesktopNotificationPermissionDialog: (doNotShowAgain: Boolean) -> Unit = {},
++     onOpenDesktopNotificationSettings: (doNotShowAgain: Boolean) -> Unit = {},
++@@ -488,7 +489,13 @@ fun App(
++     val isTablet = windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
++     val isTabletLandscape = isTablet && currentOrientation() == Orientation.LANDSCAPE
++ 
+++    val hostColors = if (inheritHostTheme) MaterialTheme.colorScheme else null
+++    val hostTypography = if (inheritHostTheme) MaterialTheme.typography else null
+++    val hostShapes = if (inheritHostTheme) MaterialTheme.shapes else null
++     AppTheme(
+++        hostColorScheme = hostColors,
+++        hostTypography = hostTypography,
+++        hostShapes = hostShapes,
++         themeMode = themeMode,
++         themeColorSource = themeColorSource,
++         customThemeColor = parseThemeColorHex(customThemeColorHex),
++@@ -528,6 +535,7 @@ fun App(
++                         }
++                     }
++                 },
+++            contentWindowInsets = if (inheritHostTheme) androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0) else androidx.compose.material3.ScaffoldDefaults.contentWindowInsets,
++             containerColor =
++                 if (isDesktopShell) desktopWindow else MaterialTheme.colorScheme.background,
++             bottomBar = {
++diff --git a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Theme.kt b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Theme.kt
++index 3cc8b92..a493cf7 100644
++--- a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Theme.kt
+++++ b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Theme.kt
++@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
++ import androidx.compose.runtime.CompositionLocalProvider
++ import androidx.compose.runtime.Immutable
++ import androidx.compose.runtime.staticCompositionLocalOf
+++import androidx.compose.ui.graphics.luminance
++ import androidx.compose.ui.graphics.Color
++ import com.materialkolor.PaletteStyle
++ import com.materialkolor.rememberDynamicColorScheme
++@@ -122,11 +123,14 @@ fun AppTheme(
++     themeColorSource: String = DataStoreManager.THEME_COLOR_DEFAULT,
++     customThemeColor: Color? = null,
++     liquidGlassEnabled: Boolean = true,
+++    hostColorScheme: ColorScheme? = null,
+++    hostTypography: androidx.compose.material3.Typography? = null,
+++    hostShapes: androidx.compose.material3.Shapes? = null,
++     content:
++         @Composable()
++         () -> Unit,
++ ) {
++-    val isDark = isDarkTheme(themeMode)
+++    val isDark = hostColorScheme?.let { it.background.luminance() < 0.5f } ?: isDarkTheme(themeMode)
++     val wallpaperScheme =
++         if (themeColorSource == DataStoreManager.THEME_COLOR_WALLPAPER) {
++             platformDynamicColorScheme(isDark)
++@@ -142,7 +146,7 @@ fun AppTheme(
++     // Light pins the neutrals to a neutral-grey ramp (the seed otherwise tints them warm/cream);
++     // dark keeps the generated neutrals as they are.
++     val colorScheme =
++-        wallpaperScheme
+++        hostColorScheme ?: wallpaperScheme
++             ?: rememberDynamicColorScheme(
++                 seedColor = seedColor,
++                 isDark = isDark,
++@@ -161,11 +165,12 @@ fun AppTheme(
++                 style = PaletteStyle.TonalSpot,
++             )
++         }
++-    SystemBarAppearanceEffect(isDark)
+++    if (hostColorScheme == null) SystemBarAppearanceEffect(isDark)
++     MaterialExpressiveTheme(
++         colorScheme = colorScheme,
++         content = {
++             CompositionLocalProvider(
+++                LocalHostTypography provides hostTypography,
++                 LocalRippleConfiguration provides SoftRippleConfiguration,
++                 LocalContentColor provides colorScheme.onSurfaceVariant,
++                 LocalAppColors provides if (isDark) DarkAppColors else LightAppColors,
++@@ -175,7 +180,8 @@ fun AppTheme(
++                 content = content,
++             )
++         },
++-        typography = typo(colorScheme),
+++        typography = hostTypography ?: typo(colorScheme),
+++        shapes = hostShapes ?: MaterialTheme.shapes,
++     )
++ }
++ 
++diff --git a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Typo.kt b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Typo.kt
++index 309c221..792a06e 100644
++--- a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Typo.kt
+++++ b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Typo.kt
++@@ -30,6 +30,8 @@ fun fontFamily(): FontFamily =
++  * regardless of theme. Immersive screens drawn over dark artwork provide `true` so their text stays
++  * readable at light theme. Everything else leaves it false and gets theme-aware colors.
++  */
+++val LocalHostTypography = staticCompositionLocalOf<Typography?> { null }
+++
++ val LocalForceDarkText = staticCompositionLocalOf { false }
++ 
++ @Composable
++@@ -37,6 +39,7 @@ fun typo(
++     colorScheme: ColorScheme = MaterialTheme.colorScheme,
++     forceDark: Boolean = LocalForceDarkText.current,
++ ): Typography {
+++    LocalHostTypography.current?.let { return it }
++     val fontFamily = fontFamily()
++ 
++     // Titles were pure white, everything else muted gray (#A8A8A8) in the old dark-only palette.
+diff --git a/simpmusic-integration/prepare.py b/simpmusic-integration/prepare.py
+new file mode 100644
+index 0000000..194e752
+--- /dev/null
++++ b/simpmusic-integration/prepare.py
+@@ -0,0 +1,77 @@
++#!/usr/bin/env python3
++"""Prepare a pinned, patched native SimpMusic build without changing either upstream checkout."""
++import argparse
++import io
++import json
++from pathlib import Path
++import shutil
++import subprocess
++import tarfile
++import tempfile
++
++HERE = Path(__file__).resolve().parent
++ROOT = HERE.parent
++
++def run(*args, cwd=None, capture=False):
++    return subprocess.run(args, cwd=cwd, check=True, stdout=subprocess.PIPE if capture else None).stdout
++
++def archive(repo, commit, destination):
++    run('git', 'cat-file', '-e', commit + '^{commit}', cwd=repo)
++    data = run('git', 'archive', commit, cwd=repo, capture=True)
++    destination.mkdir(parents=True, exist_ok=True)
++    with tarfile.open(fileobj=io.BytesIO(data)) as source:
++        source.extractall(destination, filter='data')
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--simpmusic-source', type=Path, help='Optional existing Git checkout, used read-only')
++    parser.add_argument('--core-source', type=Path, help='Optional existing Git checkout, used read-only')
++    args = parser.parse_args()
++    lock = json.loads((HERE / 'upstream.lock.json').read_text())
++    output = ROOT / '.simpmusic-build'
++    marker = output / '.glyphix-generated'
++    if output.exists() and not marker.exists():
++        raise SystemExit('Refusing to replace an unrecognised .simpmusic-build directory.')
++    with tempfile.TemporaryDirectory(prefix='.simpmusic-prepare-', dir=ROOT) as scratch:
++        scratch = Path(scratch)
++        source = scratch / 'prepared'
++        for name, checkout, target in [('simpmusic', args.simpmusic_source, source), ('core', args.core_source, source / 'core')]:
++            if checkout is None:
++                checkout = scratch / (name + '-git')
++                run('git', 'init', str(checkout))
++                run('git', '-C', str(checkout), 'fetch', '--depth=1', lock[name]['url'], lock[name]['commit'])
++            archive(checkout.resolve(), lock[name]['commit'], target)
++        for name, target in [('simpmusic', source), ('core', source / 'core')]:
++            # Isolate git apply from the enclosing Glyphix repository. Without this,
++            # Git can silently skip paths outside the current repository prefix.
++            run('git', 'init', '--quiet', str(target))
++            patch = HERE / 'patches' / (name + '.patch')
++            run('git', 'apply', '--check', str(patch), cwd=target)
++            run('git', 'apply', str(patch), cwd=target)
++        # Reuse all library modules and generated project accessors, replacing only app shells.
++        settings = (source / 'settings.gradle.kts').read_text()
++        for module in ['androidApp', 'vivoAndroidApp', 'desktopApp']:
++            settings = settings.replace('    ":' + module + '",\n', '')
++        settings += '\ninclude(":glyphix")\nproject(":glyphix").projectDir = file("../../app")\nproject(":glyphix").buildFileName = "build-simpmusic.gradle"\n'
++        # Prepared build lives at ROOT/.simpmusic-build, so ../app is the host module.
++        settings = settings.replace('file("../../app")', 'file("../app")')
++        (source / 'settings.gradle.kts').write_text(settings)
++        build = (source / 'build.gradle.kts').read_text().replace('plugins {', 'plugins {\n    id("com.google.gms.google-services") version "4.4.4" apply false', 1)
++        (source / 'build.gradle.kts').write_text(build)
++        properties = (source / 'gradle.properties').read_text()
++        properties = properties.replace('isFullBuild=true', 'isFullBuild=false').replace('org.gradle.unsafe.configuration-cache=true', 'org.gradle.configuration-cache=false')
++        (source / 'gradle.properties').write_text(properties)
++        # Android SDK path only. Do not copy credentials or unrelated local configuration.
++        local = ROOT / 'local.properties'
++        if local.exists():
++            sdk = [line for line in local.read_text().splitlines() if line.startswith('sdk.dir=')]
++            (source / 'local.properties').write_text('\n'.join(sdk) + '\n')
++        (source / '.glyphix-generated').write_text(json.dumps(lock, indent=2) + '\n')
++        if output.exists():
++            shutil.rmtree(output)
++        shutil.move(str(source), str(output))
++    print('Prepared pinned native music sources. Build with:')
++    print('  bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug')
++
++if __name__ == '__main__':
++    main()
+diff --git a/simpmusic-integration/src/main/AndroidManifest.xml b/simpmusic-integration/src/main/AndroidManifest.xml
+new file mode 100644
+index 0000000..ac72727
+--- /dev/null
++++ b/simpmusic-integration/src/main/AndroidManifest.xml
+@@ -0,0 +1,180 @@
++<?xml version='1.0' encoding='utf-8'?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
++  <uses-sdk tools:overrideLibrary="com.nothing.thirdparty" />
++  <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
++  <uses-permission android:name="android.permission.INTERNET" />
++  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:ignore="ForegroundServicesPolicy" />
++  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
++  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
++  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
++  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
++  <uses-permission android:name="android.permission.BLUETOOTH" />
++  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
++  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
++  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
++  <uses-permission android:name="android.permission.RECORD_AUDIO" />
++  <uses-permission android:name="android.permission.CAMERA" />
++  <uses-feature android:name="android.hardware.camera" android:required="false" />
++  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
++  <uses-permission android:name="android.permission.VIBRATE" />
++  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
++  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
++  <attribution android:tag="glyphixTag" android:label="@string/app_name" />
++  <queries>
++    <package android:name="com.spotify.music" />
++    <intent>
++      <action android:name="android.media.browse.MediaBrowserService" />
++    </intent>
++    <intent>
++      <action android:name="android.intent.action.MEDIA_BUTTON" />
++    </intent>
++  </queries>
++  <application android:enableOnBackInvokedCallback="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:roundIcon="@mipmap/ic_launcher_round" android:supportsRtl="true" android:theme="@style/Theme.Glyphix" tools:ignore="UnusedAttribute" android:name="com.glyphix.app.music.GlyphixMusicApplication">
++    <meta-data android:name="NothingKey" android:value="4fce0591-cbd9-4b1d-9cd0-646a2d2aecea" />
++    <activity android:name=".ui.MainActivity" android:exported="true" android:launchMode="singleTop" android:windowSoftInputMode="adjustResize">
++      <intent-filter>
++        <action android:name="android.intent.action.MAIN" />
++        <category android:name="android.intent.category.LAUNCHER" />
++        <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
++      </intent-filter>
++      <intent-filter>
++        <action android:name="android.intent.action.VIEW" />
++        <category android:name="android.intent.category.DEFAULT" />
++        <category android:name="android.intent.category.BROWSABLE" />
++        <data android:scheme="glyphix" android:host="spotify-callback" />
++      </intent-filter>
++      <intent-filter>
++        <action android:name="android.intent.action.VIEW" />
++        <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
++        <action android:name="android.nfc.action.NDEF_DISCOVERED" />
++        <category android:name="android.intent.category.DEFAULT" />
++        <category android:name="android.intent.category.BROWSABLE" />
++        <data android:scheme="http" />
++        <data android:scheme="https" />
++        <data android:host="youtube.com" />
++        <data android:host="m.youtube.com" />
++        <data android:host="www.youtube.com" />
++        <data android:host="music.youtube.com" />
++        <data android:pathPrefix="/v/" />
++        <data android:pathPrefix="/embed/" />
++        <data android:pathPrefix="/watch" />
++        <data android:pathPrefix="/channel/" />
++        <data android:pathPrefix="/user/" />
++        <data android:pathPrefix="/c/" />
++        <data android:pathPrefix="/playlist" />
++      </intent-filter>
++      <intent-filter>
++        <action android:name="android.intent.action.VIEW" />
++        <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
++        <action android:name="android.nfc.action.NDEF_DISCOVERED" />
++        <category android:name="android.intent.category.DEFAULT" />
++        <category android:name="android.intent.category.BROWSABLE" />
++        <data android:scheme="http" />
++        <data android:scheme="https" />
++        <data android:host="youtu.be" />
++        <data android:pathPrefix="/" />
++      </intent-filter>
++      <intent-filter>
++        <action android:name="android.intent.action.VIEW" />
++        <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
++        <action android:name="android.nfc.action.NDEF_DISCOVERED" />
++        <category android:name="android.intent.category.DEFAULT" />
++        <category android:name="android.intent.category.BROWSABLE" />
++        <data android:scheme="vnd.youtube" />
++        <data android:scheme="vnd.youtube.launch" />
++      </intent-filter>
++      <intent-filter>
++        <action android:name="android.intent.action.VIEW" />
++        <category android:name="android.intent.category.DEFAULT" />
++        <category android:name="android.intent.category.BROWSABLE" />
++        <data android:scheme="https" />
++        <data android:host="simpmusic.org" />
++        <data android:pathPrefix="/app/" />
++      </intent-filter>
++      <intent-filter>
++        <action android:name="android.intent.action.VIEW" />
++        <category android:name="android.intent.category.DEFAULT" />
++        <category android:name="android.intent.category.BROWSABLE" />
++        <data android:scheme="simpmusic" />
++      </intent-filter>
++      <intent-filter>
++        <action android:name="android.intent.action.VIEW" />
++        <category android:name="android.intent.category.DEFAULT" />
++        <category android:name="android.intent.category.BROWSABLE" />
++        <data android:host="lastfm-auth" android:scheme="wordbyword" />
++      </intent-filter>
++    </activity>
++    <activity android:name=".ui.AodActivity" android:exported="false" android:screenOrientation="portrait" android:showWhenLocked="true" android:turnScreenOn="true" android:theme="@style/Theme.Glyphix" />
++    <activity android:name=".util.PermissionTrampolineActivity" android:theme="@style/Theme.Transparent" android:taskAffinity="" android:excludeFromRecents="true" android:noHistory="true" android:exported="false" />
++    <service android:name=".service.AudioCaptureService" android:exported="false" android:foregroundServiceType="mediaProjection|microphone|specialUse" android:stopWithTask="false">
++      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="glyphix" />
++    </service>
++    <service android:name=".service.VisualizerService" android:exported="false" />
++    <service android:name=".service.VisualizerTileService" android:exported="true" android:icon="@drawable/ic_notif_monochrome" android:label="@string/app_name" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
++      <intent-filter>
++        <action android:name="android.service.quicksettings.action.QS_TILE" />
++      </intent-filter>
++      <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="true" />
++    </service>
++    <service android:name=".service.HapticsTileService" android:exported="true" android:icon="@drawable/ic_notif_monochrome" android:label="Glyph Haptics" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
++      <intent-filter>
++        <action android:name="android.service.quicksettings.action.QS_TILE" />
++      </intent-filter>
++      <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="true" />
++    </service>
++    <service android:name=".service.GlyphNotificationListener" android:label="@string/app_name" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
++      <intent-filter>
++        <action android:name="android.service.notification.NotificationListenerService" />
++      </intent-filter>
++    </service>
++    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">
++      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
++    </provider>
++    <receiver android:name=".widget.VisualizerWidget" android:exported="true">
++      <intent-filter>
++        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
++        <action android:name="com.glyphix.app.REFRESH_WIDGET" />
++      </intent-filter>
++      <meta-data android:name="android.appwidget.provider" android:resource="@xml/visualizer_widget_info" />
++    </receiver>
++    <provider android:name="com.glyphix.app.music.MusicFileProvider" android:authorities="${applicationId}.FileProvider" android:exported="false" android:grantUriPermissions="true">
++      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" />
++    </provider>
++    <meta-data android:name="androidx.car.app.TintableAttributionIcon" android:resource="@drawable/monochrome" />
++    <service android:name="com.maxrave.media3.service.SimpleMediaService" android:exported="true" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" tools:ignore="ExportedService">
++      <intent-filter>
++        <action android:name="androidx.media3.session.MediaSessionService" />
++        <action android:name="androidx.media3.session.MediaLibraryService" />
++        <action android:name="android.media.browse.MediaBrowserService" />
++        <action android:name="android.intent.action.MEDIA_BUTTON" />
++      </intent-filter>
++    </service>
++    <service android:name="com.maxrave.media3.service.download.MusicDownloadService" android:exported="false" android:foregroundServiceType="dataSync">
++      <intent-filter>
++        <action android:name="androidx.media3.exoplayer.downloadService.action.RESTART" />
++        <category android:name="android.intent.category.DEFAULT" />
++      </intent-filter>
++    </service>
++    <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true">
++      <intent-filter>
++        <action android:name="android.intent.action.MEDIA_BUTTON" />
++      </intent-filter>
++    </receiver>
++    <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
++    <meta-data android:name="androidx.car.app.minCarApiLevel" android:value="8" />
++    <service android:name="com.maxrave.media3.carapp.SimpMusicCarAppService" android:exported="true" tools:ignore="ExportedService">
++      <intent-filter>
++        <action android:name="androidx.car.app.CarAppService" />
++        <action android:name="androidx.car.app.media.action.SHOW_MEDIA_PLAYBACK" />
++        <category android:name="androidx.car.app.category.MEDIA" />
++      </intent-filter>
++    </service>
++  </application>
++  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
++  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
++  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
++  <uses-permission android:name="android.permission.WAKE_LOCK" />
++  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
++  <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
++  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
++</manifest>
+\ No newline at end of file
+diff --git a/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/GlyphixMusicApplication.kt b/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/GlyphixMusicApplication.kt
+new file mode 100644
+index 0000000..8746242
+--- /dev/null
++++ b/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/GlyphixMusicApplication.kt
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: GPL-3.0-only
++package com.glyphix.app.music
++
++import android.app.Application
++import android.os.Build
++import com.glyphix.app.BuildConfig
++import com.maxrave.common.AppIdentity
++import com.maxrave.data.di.loader.loadAllModules
++import com.maxrave.simpmusic.di.viewModelModule
++import com.maxrave.simpmusic.utils.VersionManager
++import multiplatform.network.cmptoast.AppContext
++import org.koin.android.ext.koin.androidContext
++import org.koin.core.context.startKoin
++
++/** Initialises the native FOSS music stack once, in the same process as Glyphix. */
++class GlyphixMusicApplication : Application() {
++    override fun onCreate() {
++        super.onCreate()
++        AppContext.set(applicationContext)
++        startKoin {
++            androidContext(this@GlyphixMusicApplication)
++            loadAllModules(AppIdentity(
++                applicationId = BuildConfig.APPLICATION_ID,
++                versionName = BuildConfig.VERSION_NAME,
++                platform = "Android ${Build.VERSION.RELEASE}",
++                isDevBuild = BuildConfig.DEBUG,
++            ))
++            modules(viewModelModule)
++        }
++        VersionManager.initialize()
++        MusicIntegration.install(NativeMusicFeature())
++    }
++}
+diff --git a/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/MusicFileProvider.kt b/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/MusicFileProvider.kt
+new file mode 100644
+index 0000000..38207a5
+--- /dev/null
++++ b/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/MusicFileProvider.kt
+@@ -0,0 +1,5 @@
++// SPDX-License-Identifier: GPL-3.0-only
++package com.glyphix.app.music
++
++/** Separate merge identity preserves both Glyphix and music sharing authorities. */
++class MusicFileProvider : androidx.core.content.FileProvider()
+diff --git a/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/NativeMusicFeature.kt b/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/NativeMusicFeature.kt
+new file mode 100644
+index 0000000..b0ae534
+--- /dev/null
++++ b/simpmusic-integration/src/main/kotlin/com/glyphix/app/music/NativeMusicFeature.kt
+@@ -0,0 +1,126 @@
++// SPDX-License-Identifier: GPL-3.0-only
++package com.glyphix.app.music
++
++import android.content.ComponentName
++import android.content.Intent
++import android.content.ServiceConnection
++import android.os.IBinder
++import androidx.activity.ComponentActivity
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.*
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.filled.*
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.text.style.TextOverflow
++import androidx.compose.ui.unit.dp
++import androidx.lifecycle.compose.collectAsStateWithLifecycle
++import androidx.core.net.toUri
++import com.eygraber.uri.toKmpUriOrNull
++import com.glyphix.app.logic.AutoPresetEngine
++import com.glyphix.app.service.AudioCaptureService
++import com.maxrave.domain.data.model.intent.GenericIntent
++import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
++import com.maxrave.domain.mediaservice.handler.PlayerEvent
++import com.maxrave.media3.audio.GlyphixPcmBridge
++import com.maxrave.media3.di.startService
++import com.maxrave.simpmusic.App
++import com.maxrave.simpmusic.viewModel.SharedViewModel
++import kotlinx.coroutines.launch
++import org.koin.core.context.loadKoinModules
++import org.koin.core.context.unloadKoinModules
++import org.koin.dsl.module
++import org.koin.mp.KoinPlatform.getKoin
++
++class NativeMusicFeature : MusicFeature {
++    private val handler: MediaPlayerHandler by lazy { getKoin().get() }
++    private val viewModel: SharedViewModel by lazy { getKoin().get() }
++    private var owner: ComponentActivity? = null
++    private var activityModule: org.koin.core.module.Module? = null
++    private var binding: ServiceConnection? = null
++
++    override fun attach(activity: ComponentActivity) {
++        owner = activity
++        activityModule = module { single<ComponentActivity> { activity } }.also { loadKoinModules(it) }
++        GlyphixPcmBridge.sink = { samples, rate ->
++            AudioCaptureService.sInstance?.submitIntegratedMusicPcm(samples, rate)
++        }
++        val connection = object : ServiceConnection {
++            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
++                viewModel.isServiceRunning = true
++            }
++            override fun onServiceDisconnected(name: ComponentName?) {
++                viewModel.isServiceRunning = false
++            }
++        }
++        binding = connection
++        startService(activity, connection)
++        onIntent(activity.intent)
++    }
++
++    override fun detach(activity: ComponentActivity) {
++        if (owner !== activity) return
++        binding?.let { activity.unbindService(it) }
++        binding = null
++        activityModule?.let { unloadKoinModules(it) }
++        activityModule = null
++        owner = null
++        // The callback only references the service singleton. Background playback keeps PCM sync.
++    }
++
++    override fun onIntent(intent: Intent) {
++        val data = intent.data ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri() ?: return
++        // Spotify remains owned by Glyphix's existing OAuth integration.
++        if (data.scheme == "glyphix") return
++        viewModel.setIntent(GenericIntent(intent.action, data.toKmpUriOrNull(), intent.type))
++    }
++
++    @Composable
++    override fun Screen(modifier: Modifier) {
++        ObserveTrackMetadata()
++        Box(modifier.fillMaxSize()) {
++            App(viewModel = viewModel, inheritHostTheme = true)
++        }
++    }
++
++    @Composable
++    override fun Player(modifier: Modifier, onOpenMusic: () -> Unit) {
++        ObserveTrackMetadata()
++        val track by handler.nowPlayingState.collectAsStateWithLifecycle()
++        val controls by handler.controlState.collectAsStateWithLifecycle()
++        val scope = rememberCoroutineScope()
++        if (track.mediaItem.mediaId.isBlank()) return
++        Surface(modifier.clickable(onClick = onOpenMusic), shape = MaterialTheme.shapes.medium,
++            color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 3.dp) {
++            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
++                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
++                Column(Modifier.weight(1f)) {
++                    Text(track.mediaItem.metadata.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis,
++                        style = MaterialTheme.typography.titleSmall)
++                    Text(track.mediaItem.metadata.artist.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis,
++                        style = MaterialTheme.typography.bodySmall)
++                }
++                IconButton(enabled = controls.isPreviousAvailable, onClick = {
++                    scope.launch { handler.onPlayerEvent(PlayerEvent.Previous) }
++                }) { Icon(Icons.Default.SkipPrevious, "Previous track") }
++                IconButton(onClick = { scope.launch { handler.onPlayerEvent(PlayerEvent.PlayPause) } }) {
++                    Icon(if (controls.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
++                        if (controls.isPlaying) "Pause" else "Play")
++                }
++                IconButton(enabled = controls.isNextAvailable, onClick = {
++                    scope.launch { handler.onPlayerEvent(PlayerEvent.Next) }
++                }) { Icon(Icons.Default.SkipNext, "Next track") }
++            }
++        }
++    }
++
++    @Composable
++    private fun ObserveTrackMetadata() {
++        val track by handler.nowPlayingState.collectAsStateWithLifecycle()
++        LaunchedEffect(track.mediaItem.mediaId) {
++            val metadata = track.mediaItem.metadata
++            AutoPresetEngine.getInstance().updateMediaMetadata(metadata.title, metadata.artist, metadata.albumTitle, null)
++        }
++    }
++}
+diff --git a/simpmusic-integration/src/main/res/xml/automotive_app_desc.xml b/simpmusic-integration/src/main/res/xml/automotive_app_desc.xml
+new file mode 100644
+index 0000000..5171964
+--- /dev/null
++++ b/simpmusic-integration/src/main/res/xml/automotive_app_desc.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<automotiveApp>
++    <uses name="media" />
++    <uses name="template" />
++</automotiveApp>
+\ No newline at end of file
+diff --git a/simpmusic-integration/src/main/res/xml/provider_paths.xml b/simpmusic-integration/src/main/res/xml/provider_paths.xml
+new file mode 100644
+index 0000000..8186d17
+--- /dev/null
++++ b/simpmusic-integration/src/main/res/xml/provider_paths.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<paths>
++    <external-path
++        name="external_files"
++        path="." />
++    <cache-path
++        name="cache"
++        path="." />
++    <external-cache-path
++        name="external_cache"
++        path="." />
++</paths>
+\ No newline at end of file
+diff --git a/simpmusic-integration/upstream.lock.json b/simpmusic-integration/upstream.lock.json
+new file mode 100644
+index 0000000..7b6c979
+--- /dev/null
++++ b/simpmusic-integration/upstream.lock.json
+@@ -0,0 +1,4 @@
++{
++  "simpmusic": {"url": "https://github.com/maxrave-dev/SimpMusic.git", "commit": "d5842c65cddbe7522553a1d1ff1fabf52d3be7bc"},
++  "core": {"url": "https://github.com/maxrave-dev/core.git", "commit": "2894e549763b8a68225b4456d3290f3227bdbb01"}
++}
+diff --git a/tests/simpmusic/PcmDecoderTest.java b/tests/simpmusic/PcmDecoderTest.java
+new file mode 100644
+index 0000000..13aa382
+--- /dev/null
++++ b/tests/simpmusic/PcmDecoderTest.java
+@@ -0,0 +1,40 @@
++import com.maxrave.media3.audio.GlyphixPcmDecoder;
++import java.nio.ByteBuffer;
++import java.nio.ByteOrder;
++import java.util.Arrays;
++
++public final class PcmDecoderTest {
++    static void check(boolean condition, String name) {
++        if (!condition) throw new AssertionError(name);
++    }
++    static ByteBuffer pcm(short... values) {
++        ByteBuffer b = ByteBuffer.allocate(values.length * 2).order(ByteOrder.LITTLE_ENDIAN);
++        for (short value : values) b.putShort(value);
++        return b.flip();
++    }
++    public static void main(String[] args) {
++        ByteBuffer mono = pcm((short)-32768, (short)0, (short)32767);
++        check(Arrays.equals(GlyphixPcmDecoder.readMono(mono, 1, false, 8192),
++                new short[]{-32768, 0, 32767}), "PCM16 signed limits");
++        ByteBuffer stereo = pcm((short)32767, (short)32767, (short)-32768, (short)-32768, (short)100, (short)-100);
++        check(Arrays.equals(GlyphixPcmDecoder.readMono(stereo, 2, false, 8192),
++                new short[]{32767, -32768, 0}), "stereo average without overflow");
++        ByteBuffer floats = ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN);
++        for (float value : new float[]{2f,-2f,Float.NaN,Float.POSITIVE_INFINITY,.5f,-.5f}) floats.putFloat(value);
++        floats.flip();
++        check(Arrays.equals(GlyphixPcmDecoder.readMono(floats, 1, true, 8192),
++                new short[]{32767,-32767,0,0,16384,-16383}), "float clipping and invalid samples");
++        ByteBuffer bounded = pcm((short)1,(short)2,(short)3);
++        check(GlyphixPcmDecoder.readMono(bounded,1,false,2).length == 2 && bounded.remaining() == 2,
++                "bounded chunks retain the next frame");
++        ByteBuffer incomplete = ByteBuffer.wrap(new byte[]{1,0,2});
++        check(GlyphixPcmDecoder.readMono(incomplete,2,false,8192).length == 0 && incomplete.position() == 0,
++                "incomplete frame never overreads");
++        ByteBuffer original = pcm((short)42,(short)84);
++        GlyphixPcmDecoder.readMono(original.asReadOnlyBuffer(),1,false,8192);
++        check(original.position() == 0 && original.getShort() == 42, "tap leaves playback buffer untouched");
++        try { GlyphixPcmDecoder.readMono(original,0,false,10); throw new AssertionError("invalid channels"); }
++        catch (IllegalArgumentException expected) { }
++        System.out.println("7 PCM decoder checks passed");
++    }
++}
+diff --git a/tests/simpmusic/run.sh b/tests/simpmusic/run.sh
+new file mode 100644
+index 0000000..2714b06
+--- /dev/null
++++ b/tests/simpmusic/run.sh
+@@ -0,0 +1,9 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")/../.."
++output=$(mktemp -d)
++trap 'rm -rf "$output"' EXIT
++java com.sun.tools.javac.Main -d "$output" \
++  .simpmusic-build/core/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmDecoder.java \
++  tests/simpmusic/PcmDecoderTest.java
++java -cp "$output" PcmDecoderTest

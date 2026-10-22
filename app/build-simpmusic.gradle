@@ -1,0 +1,159 @@
+// Native music integration build; normal app/build.gradle remains independently buildable.
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'com.google.gms.google-services'
+}
+
+android {
+    namespace 'com.glyphix.app'
+    compileSdk 37
+
+    defaultConfig {
+        applicationId "com.glyphix.app"
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('../keystore/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        release {
+            storeFile file('../keystore/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.debug
+            debuggable true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            versionNameSuffix '.debug'
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDir '../simpmusic-integration/src/main/kotlin'
+            manifest.srcFile '../simpmusic-integration/src/main/AndroidManifest.xml'
+            res.srcDir '../simpmusic-integration/src/main/res'
+            assets.srcDir '../simpmusic-integration/licenses'
+        }
+    }
+    packaging {
+        resources.excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*',
+            'META-INF/ASL2.0', 'META-INF/CONTRIBUTORS.md', 'META-INF/versions/9/OSGI-INF/MANIFEST.MF']
+    }
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
+}
+
+dependencies {
+    implementation project(':composeApp')
+    implementation project(':data')
+    implementation project(':domain')
+    implementation project(':common')
+    implementation project(':media3')
+    implementation platform(libs.koin.bom)
+    implementation libs.koin.android
+    implementation libs.uri
+    coreLibraryDesugaring libs.desugaring
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    // 1. Keep your local SDK
+    implementation fileTree(dir: 'libs', include: ['*.aar', '*.jar'])
+
+    // FFT Library for better accuracy
+    implementation 'com.github.wendykierp:JTransforms:3.2'
+
+    // 2. Compose BOM - Manages versions for all compose libs below
+    implementation platform('androidx.compose:compose-bom:2026.09.00')
+
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:34.15.0')
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-database'
+    implementation 'com.google.android.gms:play-services-auth:21.6.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0'
+    implementation 'com.google.firebase:firebase-auth'
+
+    // Coil for image loading
+    implementation("io.coil-kt.coil3:coil-compose:3.5.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
+
+    // 3. Core Compose Libraries (Versions handled by BOM)
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.animation:animation'
+    implementation 'androidx.compose.foundation:foundation-layout'
+    implementation 'androidx.compose.runtime:runtime'
+    implementation 'androidx.compose.animation:animation-core'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.ui:ui-text'
+
+    // 4. Material 3
+    implementation "androidx.compose.material3:material3"
+    implementation 'com.google.android.material:material:1.14.0'
+    implementation 'androidx.graphics:graphics-shapes:1.1.0'
+
+    // 5. Activity & Lifecycle
+    implementation 'androidx.activity:activity-compose:1.13.0'
+    implementation 'androidx.lifecycle:lifecycle-service:2.11.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.11.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.11.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0'
+    implementation 'androidx.savedstate:savedstate-ktx:1.5.0'
+
+    // 6. Icons
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'br.com.devsrsouza.compose.icons:font-awesome:1.1.1'
+
+    // 7. Legacy Support
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.palette:palette-ktx:1.0.0'
+    implementation 'androidx.benchmark:benchmark-traceprocessor:1.4.1'
+
+    // 8. Spotify Integration & Networking
+    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+    implementation 'androidx.browser:browser:1.8.0'
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+
+    // 9. Debugging
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+}

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tab_music">Music</string>
+    <string name="source_simpmusic">Built-in music</string>
     <string name="app_name">Glyphix</string>
 
     <!-- Audio Screen -->

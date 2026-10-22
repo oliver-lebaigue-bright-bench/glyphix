@@ -226,7 +226,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        com.glyphix.app.music.MusicIntegration.feature?.attach(this)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
@@ -236,6 +235,7 @@ class MainActivity : ComponentActivity() {
             FirebaseDatabase.getInstance().setPersistenceEnabled(true)
         } catch (_: Exception) {}
 
+        com.glyphix.app.music.MusicIntegration.feature?.attach(this) { viewModel.selectTab(Tab.Music) }
         val intent = Intent(this, AudioCaptureService::class.java)
         bindService(intent, serviceConnection, BIND_AUTO_CREATE)
 

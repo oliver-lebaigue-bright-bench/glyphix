@@ -11,7 +11,8 @@ Experimental integration branch for Glyphix. This is a source integration, not a
 - An explicit built-in music visualisation source. Starting and stopping visualisation remains the user's choice and does not start or stop music playback.
 - PCM taps in both standard and crossfade Media3 renderer factories, after per-track audio effects. PCM is forwarded without altering the playback buffer.
 - A bounded latest-frame mailbox to the existing Glyphix FFT/rendering pipeline, keeping FFT/hardware work off the playback thread. It feeds the existing enabled Glyph, haptic, flashlight, overlay, latency compensation and PC PCM-stream outputs.
-- Track metadata reaches the existing automatic preset engine without requiring notification access.
+- Track metadata reaches the existing automatic preset engine and artwork drives Glyphix’s Music theme without requiring notification access.
+- Music service shutdown preserves the shared Glyphix process and reusable player graph.
 - Native music playback/download services, media buttons, Android Auto service declaration, sharing provider and supported link intent routes within the Glyphix package.
 - Pinned upstream source commits, reproducible patches, PCM conversion tests and a separate Android integration build workflow.
 
@@ -35,7 +36,7 @@ The preparer fetches the exact commits in `upstream.lock.json`, exports clean so
 
 ## Validation and outstanding work
 
-Local checks: source preparation with both pinned commits and patch application passed; seven PCM decoder checks passed. A local APK build initially could not reach Gradle directly. Retrying through the environment proxy resolved Gradle and the native module configuration, but the local Java 17 runtime lacks the compiler toolchain required by the integrated app. The build now explicitly selects JDK 21. Android compilation has not yet passed locally. The GitHub workflow is intended to validate the complete Android graph with JDK 21 and SDK 37.0; a successful workflow and device tests are still required.
+Source preparation with the pinned commits and patch application passes, and all seven PCM decoder checks pass. CI has compiled the upstream core/media modules and checks the complete Android graph with JDK 21 and SDK 37.0. Full APK compilation, lint and device acceptance must pass before treating this as a release. Consult the latest Native SimpMusic integration workflow run for the current result.
 
 This branch is not a claim of complete feature parity. In particular:
 

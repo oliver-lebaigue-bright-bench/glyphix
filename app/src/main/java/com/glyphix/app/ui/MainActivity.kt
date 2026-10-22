@@ -226,6 +226,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.glyphix.app.music.MusicIntegration.feature?.attach(this)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
@@ -383,6 +384,7 @@ class MainActivity : ComponentActivity() {
                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 }
+                AudioCaptureService.CaptureSource.SIMPMUSIC -> s.startVisualizer()
                 AudioCaptureService.CaptureSource.SMART -> s.startVisualizer()
                 AudioCaptureService.CaptureSource.VIZUALIZER -> s.startVisualizer()
                 AudioCaptureService.CaptureSource.SPOTIFY -> s.startVisualizer()
@@ -528,6 +530,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        com.glyphix.app.music.MusicIntegration.feature?.detach(this)
         super.onDestroy()
         unbindService(serviceConnection)
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
@@ -545,6 +548,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        com.glyphix.app.music.MusicIntegration.feature?.onIntent(intent)
         intent.data?.let { uri ->
             if (uri.scheme == "glyphix" && uri.host == "spotify-callback") {
                 viewModel.spotifyAuthManager.handleAuthCallback(uri)
@@ -591,12 +595,7 @@ internal fun GlyphixApp(
     val context = LocalContext.current
 
     val visibleTabs = remember {
-        listOf(
-            Tab.Audio,
-            Tab.Leaderboard,
-            Tab.Settings,
-            Tab.Info
-        )
+        com.glyphix.app.music.primaryGlyphixTabs()
     }
 
     val pagerState = rememberPagerState(initialPage = visibleTabs.indexOf(selectedTab).coerceAtLeast(0)) { visibleTabs.size }
@@ -653,6 +652,7 @@ internal fun GlyphixApp(
     val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
 
     val screenTitle = when (selectedTab) {
+        Tab.Music -> "Music"
         Tab.Audio -> "Glyphix"
         Tab.Leaderboard -> "Leaderboard"
         Tab.Spotify -> "Spotify"
@@ -834,6 +834,21 @@ internal fun GlyphixApp(
                             viewModel = viewModel
                         )
                     }
+                    Tab.Music -> {
+                        Column(Modifier.fillMaxSize().padding(bottom = 100.dp)) {
+                            val musicSource = AudioCaptureService.CaptureSource.SIMPMUSIC
+                            androidx.compose.material3.FilterChip(
+                                selected = isRunning && captureSource == musicSource,
+                                onClick = {
+                                    if (isRunning && captureSource == musicSource) onToggleVisualizer()
+                                    else onSwitchCaptureSource(musicSource)
+                                },
+                                label = { Text("Visualise built-in music") },
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            com.glyphix.app.music.MusicIntegration.feature?.Screen(Modifier.weight(1f))
+                        }
+                    }
                     Tab.Spotify -> {
                         SpotifyScreen(
                             spotifyRepo = viewModel.spotifyRepository,
@@ -901,6 +916,13 @@ internal fun GlyphixApp(
             }
         }
 
+        // The same native player remains available while configuring Glyphs, haptics and audio.
+        if (selectedTab != Tab.Music) {
+            com.glyphix.app.music.MusicIntegration.feature?.Player(
+                Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp, start = 16.dp, end = 16.dp),
+                onOpenMusic = { viewModel.selectTab(Tab.Music) }
+            )
+        }
         // Floating Bottom Navigation Bar (Floats directly over pages with no reserved space)
         FloatingBottomBar(
             selectedTab = selectedTab,

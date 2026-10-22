@@ -671,6 +671,7 @@ private data class TabItem(
 )
 
 private fun getTabItem(tab: Tab): TabItem = when (tab) {
+    Tab.Music -> TabItem(Tab.Music, icon = Icons.Default.MusicNote, label = "Music")
     Tab.Audio -> TabItem(Tab.Audio, icon = Icons.Default.MusicNote, label = "Audio")
     Tab.Leaderboard -> TabItem(Tab.Leaderboard, icon = FontAwesomeIcons.Solid.Trophy, label = "Leaderboard")
     Tab.Spotify -> TabItem(Tab.Spotify, icon = Icons.Default.GraphicEq, label = "Spotify")
@@ -680,12 +681,7 @@ private fun getTabItem(tab: Tab): TabItem = when (tab) {
 }
 
 private fun getNavItemsForTab(tab: Tab): List<TabItem> {
-    return listOf(
-        getTabItem(Tab.Audio),
-        getTabItem(Tab.Leaderboard),
-        getTabItem(Tab.Settings),
-        getTabItem(Tab.Info)
-    )
+    return com.glyphix.app.music.primaryGlyphixTabs().map { getTabItem(it) }
 }
 
 /**
@@ -722,6 +718,9 @@ fun SpeedDialFabMenu(
         val list = mutableListOf<Triple<String, ImageVector, AudioCaptureService.CaptureSource>>()
         if (isRunning) {
             list.add(Triple("Stop Visualizer", Icons.Default.Stop, AudioCaptureService.CaptureSource.INTERNAL))
+        }
+        if (com.glyphix.app.music.MusicIntegration.available) {
+            list.add(Triple("Built-in music", Icons.Default.MusicNote, AudioCaptureService.CaptureSource.SIMPMUSIC))
         }
         list.addAll(listOf(
             Triple("Smart Source", Icons.Outlined.StarOutline, AudioCaptureService.CaptureSource.SMART),

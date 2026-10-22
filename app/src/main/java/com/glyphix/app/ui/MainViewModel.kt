@@ -49,6 +49,7 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 enum class Tab(val label: String, val labelRes: Int) {
+    Music("Music", R.string.tab_music),
     Audio("Audio", R.string.tab_audio), 
     Leaderboard("Leaderboard", R.string.tab_leaderboard),
     Glyphs("Glyphs", R.string.tab_glyphs), 

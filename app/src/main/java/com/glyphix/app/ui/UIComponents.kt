@@ -1405,12 +1405,7 @@ fun NativeBottomBar(
     val uiAmp = LocalUIAmplitude.current
 
     val visibleTabs = remember {
-        listOf(
-            Tab.Audio,
-            Tab.Leaderboard,
-            Tab.Settings,
-            Tab.Info
-        )
+        com.glyphix.app.music.primaryGlyphixTabs()
     }
 
     if (isGlass) {
@@ -1513,6 +1508,7 @@ fun NativeBottomBar(
                                 )
                             } else {
                                 when (tab) {
+                                    Tab.Music -> Icon(Icons.Default.MusicNote, null, iconModifier, tint = contentColor)
                                     Tab.Audio -> Icon(FontAwesomeIcons.Solid.Music, null, iconModifier, tint = contentColor)
                                     Tab.Leaderboard -> Icon(FontAwesomeIcons.Solid.Trophy, null, iconModifier, tint = contentColor)
                                     Tab.Glyphs -> Icon(painterResource(R.drawable.ic_nav_glyphs), null, iconModifier, tint = contentColor)
@@ -1583,6 +1579,7 @@ fun NativeBottomBar(
                             )
                         } else {
                             when (tab) {
+                                Tab.Music -> Icon(Icons.Default.MusicNote, null, iconModifier)
                                 Tab.Audio -> Icon(FontAwesomeIcons.Solid.Music, null, iconModifier)
                                 Tab.Leaderboard -> Icon(FontAwesomeIcons.Solid.Trophy, null, iconModifier)
                                 Tab.Glyphs -> Icon(painterResource(R.drawable.ic_nav_glyphs), null, iconModifier)

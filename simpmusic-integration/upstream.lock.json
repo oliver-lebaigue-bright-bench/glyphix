@@ -1,0 +1,4 @@
+{
+  "simpmusic": {"url": "https://github.com/maxrave-dev/SimpMusic.git", "commit": "d5842c65cddbe7522553a1d1ff1fabf52d3be7bc"},
+  "core": {"url": "https://github.com/maxrave-dev/core.git", "commit": "2894e549763b8a68225b4456d3290f3227bdbb01"}
+}

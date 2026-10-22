@@ -1,0 +1,45 @@
+name: Native SimpMusic integration
+on:
+  push:
+    branches: ['integration/simpmusic']
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'simpmusic-integration/**'
+      - 'tests/simpmusic/**'
+      - '.github/workflows/simpmusic-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: simpmusic-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Prepare pinned sources and verify patches
+        run: python3 simpmusic-integration/prepare.py
+      - name: Test PCM conversion
+        run: bash tests/simpmusic/run.sh
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
+      - name: Create development signing key
+        run: |
+          mkdir -p keystore
+          keytool -genkeypair -keystore keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Glyphix Development,O=Glyphix,C=IE'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile integrated APK and run lint
+        run: bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphix:lintDebug --no-configuration-cache
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glyphix-simpmusic-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

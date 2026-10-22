@@ -18,3 +18,7 @@ keystore*
 *.jks
 *.keystore
 app/release/
+
+# Reproducible native music dependency worktree
+.simpmusic-build/
+.simpmusic-prepare-*/

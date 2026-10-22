@@ -1,0 +1,3 @@
+
+# Unified patch context uses a literal leading space for empty source lines.
+simpmusic-integration/patches/*.patch -whitespace

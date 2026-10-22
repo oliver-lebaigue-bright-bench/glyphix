@@ -110,3 +110,37 @@ index 3b789f1..594555a 100644
                                  SilenceSkippingAudioProcessor(
                                      2_000_000,
                                      (20_000 / 2_000_000).toFloat(),
+diff --git a/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt b/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt
+index 64bed3e..43c6b6c 100644
+--- a/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt
++++ b/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt
+@@ -28,7 +28,6 @@ import kotlinx.coroutines.runBlocking
+ import org.koin.core.component.KoinComponent
+ import org.koin.core.component.inject
+ import org.koin.core.qualifier.named
+-import kotlin.system.exitProcess
+ 
+ @UnstableApi
+ internal class SimpleMediaService :
+@@ -147,8 +146,9 @@ internal class SimpleMediaService :
+                     // Don't call this.player.release() - CrossfadeExoPlayerAdapter manages player lifecycle
+                     this.release()
+                 }
+-                // Release handler (contains coroutines and jobs, which also releases the adapter)
+-                simpleMediaServiceHandler.release()
++                // Glyphix and music share one Application/Koin graph. Keep the handler reusable:
++                // releasing its adapter here would break music on the next activity/service bind.
++                simpleMediaServiceHandler.mayBeSavePlaybackState()
+                 mediaSession = null
+                 Logger.w("Service", "Simple Media Service Released")
+             } catch (e: Exception) {
+@@ -177,7 +177,8 @@ internal class SimpleMediaService :
+         if (simpleMediaServiceHandler.shouldReleaseOnTaskRemoved()) {
+             release()
+             super.onTaskRemoved(rootIntent)
+-            exitProcess(0)
++            // Stopping music must not terminate Glyphix's visualiser or other services.
++            stopSelf()
+         }
+     }
+ 

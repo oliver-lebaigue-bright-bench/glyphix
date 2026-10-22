@@ -681,7 +681,10 @@ fun CaptureSourceCard(
     MockupCard(modifier = Modifier.fillMaxWidth()) {
         CardHeader(title = "Audio Input Source")
         Spacer(modifier = Modifier.height(10.dp))
-        val mainSources = listOf(
+        val musicSources = if (com.glyphix.app.music.MusicIntegration.available) listOf(
+            Triple(AudioCaptureService.CaptureSource.SIMPMUSIC, "Built-in music", Icons.Default.MusicNote)
+        ) else emptyList()
+        val mainSources = musicSources + listOf(
             Triple(AudioCaptureService.CaptureSource.SMART, "Smart Source", FontAwesomeIcons.Solid.Magic),
             Triple(
                 AudioCaptureService.CaptureSource.INTERNAL,

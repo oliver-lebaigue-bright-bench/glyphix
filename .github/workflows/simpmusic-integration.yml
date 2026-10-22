@@ -40,8 +40,10 @@ jobs:
           mkdir -p keystore
           keytool -genkeypair -keystore keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Glyphix Development,O=Glyphix,C=IE'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - name: Compile integrated APK and run lint
-        run: bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphix:lintDebug --no-configuration-cache
+        run: bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphix:lintDebug --no-configuration-cache --build-cache
       - uses: actions/upload-artifact@v4
         with:
           name: glyphix-simpmusic-debug

@@ -3,6 +3,7 @@
 import argparse
 import io
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -48,6 +49,13 @@ def main():
             patch = HERE / 'patches' / (name + '.patch')
             run('git', 'apply', '--check', str(patch), cwd=target)
             run('git', 'apply', str(patch), cwd=target)
+        # API 37 is published as android-37.0. Use the public AGP CompileSdkSpec
+        # for both normal Android libraries and KMP libraries (which have no compileSdkMinor property).
+        for script in source.rglob('build.gradle.kts'):
+            text = script.read_text()
+            text = re.sub(r'(?m)^([ \t]*)compileSdk = 37[ \t]*$',
+                          r'\1compileSdk { version = release(37) { minorApiLevel = 0 } }', text)
+            script.write_text(text)
         # Reuse all library modules and generated project accessors, replacing only app shells.
         settings = (source / 'settings.gradle.kts').read_text()
         for module in ['androidApp', 'vivoAndroidApp', 'desktopApp']:

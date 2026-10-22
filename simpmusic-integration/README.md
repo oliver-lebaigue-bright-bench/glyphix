@@ -17,7 +17,7 @@ Experimental integration branch for Glyphix. This is a source integration, not a
 
 ## Build
 
-Requirements: Git, Python 3.12+, JDK 21, Android SDK platform 37 and build tools 37.0.0. Keep Glyphix's existing `app/google-services.json` and `app/libs` dependencies. Set `ANDROID_HOME` or `sdk.dir` in the repository's `local.properties`.
+Requirements: Git, Python 3.12+, JDK 21, Android SDK platform 37.0 and build tools 37.0.0. Keep Glyphix's existing `app/google-services.json` and `app/libs` dependencies. Set `ANDROID_HOME` or `sdk.dir` in the repository's `local.properties`.
 
 ```sh
 python3 simpmusic-integration/prepare.py
@@ -31,11 +31,11 @@ bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphi
 
 Create the key only if `keystore/debug.keystore` does not already exist. The APK is produced under `app/build/outputs/apk/debug/`. Normal Glyphix builds continue to use `app/build.gradle`; the integration uses `app/build-simpmusic.gradle` with the upstream toolchain and native libraries. No additional account or server is required to prepare the source. Individual upstream features can still require their normal accounts or remote services.
 
-The preparer fetches the exact commits in `upstream.lock.json`, exports clean source snapshots and applies the checked-in patches. Existing developer checkouts can be supplied read-only with `--simpmusic-source PATH --core-source PATH`. It replaces only its own marked `.simpmusic-build` directory and never edits the source checkouts. Generated code is ignored by Git. Patch updates are explicit; neither upstream's moving main branch is used implicitly.
+The preparer fetches the exact commits in `upstream.lock.json`, exports clean source snapshots and applies the checked-in patches. Existing developer checkouts can be supplied read-only with `--simpmusic-source PATH --core-source PATH`. It replaces only its own marked `.simpmusic-build` directory and never edits the source checkouts. The prepared libraries explicitly select Android 37.0 through AGP’s minor API DSL, matching Google’s published platform package. Generated code is ignored by Git. Patch updates are explicit; neither upstream's moving main branch is used implicitly.
 
 ## Validation and outstanding work
 
-Local checks: source preparation with both pinned commits and patch application passed; seven PCM decoder checks passed. A local APK build initially could not reach Gradle directly. Retrying through the environment proxy downloaded Gradle successfully but then failed resolving the upstream Foojay settings plugin. Android compilation has not yet run locally. The GitHub workflow is intended to validate the complete Android graph with JDK 21 and SDK 37; a successful workflow and device tests are still required.
+Local checks: source preparation with both pinned commits and patch application passed; seven PCM decoder checks passed. A local APK build initially could not reach Gradle directly. Retrying through the environment proxy resolved Gradle and the native module configuration, but the local Java 17 runtime lacks the compiler toolchain required by the integrated app. The build now explicitly selects JDK 21. Android compilation has not yet passed locally. The GitHub workflow is intended to validate the complete Android graph with JDK 21 and SDK 37.0; a successful workflow and device tests are still required.
 
 This branch is not a claim of complete feature parity. In particular:
 

@@ -7,9 +7,11 @@ import android.os.SystemClock
 class SmartCapturePlaybackEngine(
     private val pushFrameCallback: (FloatArray) -> Unit
 ) {
-    private var isPlaying = false
-    private var currentSequence: SongVisualSequence? = null
+    @Volatile private var isPlaying = false
+    @Volatile private var currentSequence: SongVisualSequence? = null
     
+    private var timestamps = LongArray(0)
+
     // Time tracking
     private var playbackStartTimeMs: Long = 0
     private var startOffsetMs: Long = 0
@@ -26,6 +28,7 @@ class SmartCapturePlaybackEngine(
     }
 
     fun start(sequence: SongVisualSequence, startPositionMs: Long) {
+        if (currentSequence !== sequence) timestamps = sequence.frames.map { it.timestampMs }.toLongArray()
         currentSequence = sequence
         startOffsetMs = startPositionMs
         playbackStartTimeMs = SystemClock.elapsedRealtime()
@@ -63,22 +66,9 @@ class SmartCapturePlaybackEngine(
             return
         }
         
-        // Find the closest frame
         val frames = seq.frames
         if (frames.isEmpty()) return
-        
-        // Binary search or simple linear scan if not too big. 
-        // For efficiency, we assume frames are sorted by timestampMs.
-        // We find the frame whose timestamp is closest to currentPositionMs.
-        
-        var closestFrame = frames.first()
-        for (frame in frames) {
-            if (frame.timestampMs > currentPositionMs) {
-                break
-            }
-            closestFrame = frame
-        }
-        
-        pushFrameCallback(closestFrame.getIntensitiesArray())
+        val found = SmartSourceRules.frameIndex(timestamps, currentPositionMs)
+        if (found >= 0) pushFrameCallback(frames[found].getIntensitiesArray())
     }
 }

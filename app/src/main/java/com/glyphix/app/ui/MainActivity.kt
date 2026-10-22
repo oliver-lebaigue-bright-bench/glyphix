@@ -383,6 +383,7 @@ class MainActivity : ComponentActivity() {
                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 }
+                AudioCaptureService.CaptureSource.SMART -> s.startVisualizer()
                 AudioCaptureService.CaptureSource.VIZUALIZER -> s.startVisualizer()
                 AudioCaptureService.CaptureSource.SPOTIFY -> s.startVisualizer()
                 AudioCaptureService.CaptureSource.NETWORK -> s.startVisualizer()

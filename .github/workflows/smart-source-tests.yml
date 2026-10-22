@@ -1,0 +1,37 @@
+name: Smart Source checks
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'tests/smart-source/**'
+      - '.github/workflows/smart-source-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: |
+          mkdir -p /tmp/glyphix-smart-test
+          java com.sun.tools.javac.Main -d /tmp/glyphix-smart-test app/src/main/java/com/glyphix/app/logic/smartcapture/SmartSourceRules.java tests/smart-source/SmartSourceRulesTest.java
+          java -cp /tmp/glyphix-smart-test SmartSourceRulesTest
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile Android integration
+        run: bash gradlew :app:compileDebugKotlin :app:compileDebugJavaWithJavac --console=plain

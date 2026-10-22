@@ -724,7 +724,7 @@ fun SpeedDialFabMenu(
             list.add(Triple("Stop Visualizer", Icons.Default.Stop, AudioCaptureService.CaptureSource.INTERNAL))
         }
         list.addAll(listOf(
-            Triple("Smart Capture", Icons.Outlined.StarOutline, AudioCaptureService.CaptureSource.INTERNAL),
+            Triple("Smart Source", Icons.Outlined.StarOutline, AudioCaptureService.CaptureSource.SMART),
             Triple("Screen Capture", Icons.Outlined.Image, AudioCaptureService.CaptureSource.INTERNAL),
             Triple("Android Visualizer", Icons.Outlined.MusicNote, AudioCaptureService.CaptureSource.VIZUALIZER),
             Triple("Microphone", Icons.Outlined.Mic, AudioCaptureService.CaptureSource.MIC),

@@ -106,7 +106,10 @@ public class AudioCaptureService extends Service {
     private static final String TAG = "GlyphViz:Service";
     private static final String CHANNEL_ID = "glyph_viz_channel";
     private static final int NOTIF_ID = 1;
-    public enum CaptureSource { INTERNAL, MIC, VIZUALIZER, SPOTIFY, NETWORK }
+    public enum CaptureSource { INTERNAL, MIC, VIZUALIZER, SPOTIFY, NETWORK, SMART }
+    private com.glyphix.app.logic.smartcapture.SmartSourceSession mSmartSource;
+    private boolean mRenderingSmartFrame;
+    private long mLastSmartSetupMs;
     private volatile CaptureSource mCaptureSource = CaptureSource.INTERNAL;
 
     public static final String ACTION_STOP = "com.glyphix.app.action.STOP";
@@ -464,6 +467,20 @@ public class AudioCaptureService extends Service {
 
                 if (now - mLastNotifUpdateMs >= 1000) { refreshNotification(); mLastNotifUpdateMs = now; }
                 
+                if (mCaptureSource == CaptureSource.SMART && mSmartSource != null && mVisualizerConfig != null) {
+                    mSmartSource.tick(mVisualizerConfig, mSelectedDevice);
+                    if (mVisualizer == null && !mSmartSource.isDatabasePlayback()
+                            && now - mLastSmartSetupMs > 5000
+                            && ActivityCompat.checkSelfPermission(AudioCaptureService.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        mLastSmartSetupMs = now;
+                        mWorkerHandler.post(() -> { if (mCapturing && mCaptureSource == CaptureSource.SMART) setupVisualizerCapture(); });
+                    }
+                    // Database playback uses media metadata without audio sampling.
+                    if (mVisualizer != null) {
+                        try { mVisualizer.setEnabled(!mSmartSource.isDatabasePlayback()); }
+                        catch (RuntimeException ignored) {}
+                    }
+                }
                 // Unconditionally dispatch due frames for ALL capture sources
                 synchronized (mVisualizerPendingFrames) { 
                     dispatchDueFrames(mVisualizerPendingFrames); 
@@ -528,6 +545,12 @@ public class AudioCaptureService extends Service {
     public void onCreate() {
         super.onCreate();
         sInstance = this;
+        mSmartSource = new com.glyphix.app.logic.smartcapture.SmartSourceSession(this, magnitudes -> {
+            mRenderingSmartFrame = true;
+            try { processFrame(magnitudes, 0f, mVisualizerConfig, mPresetConfigVersion.get()); }
+            finally { mRenderingSmartFrame = false; }
+            return kotlin.Unit.INSTANCE;
+        });
         mGlobalStatsRepository = new GlobalStatsRepository();
         mLastGlobalSyncMs = SystemClock.elapsedRealtime();
         mAnalyticsHelper = new com.glyphix.app.util.AnalyticsHelper(this);
@@ -662,12 +685,14 @@ public class AudioCaptureService extends Service {
         if (mGM != null) mGM.unInit(); if (mGMM != null) mGMM.unInit();
         if (mAudioManager != null) mAudioManager.unregisterAudioDeviceCallback(mAudioDeviceCallback);
         if (mWorkerThread != null) mWorkerThread.quitSafely();
+        if (mSmartSource != null) mSmartSource.close();
         super.onDestroy();
     }
 
     public static boolean isRunning() { return sIsRunning; }
     public void startVisualizer() {
-        if (mCaptureSource == CaptureSource.MIC) startMicCapture();
+        if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
+        else if (mCaptureSource == CaptureSource.MIC) startMicCapture();
         else if (mCaptureSource == CaptureSource.VIZUALIZER) startVizualizerCapture();
         else if (mCaptureSource == CaptureSource.SPOTIFY) startSpotifyCapture();
         else if (mCaptureSource == CaptureSource.NETWORK) startNetworkCapture();
@@ -681,7 +706,8 @@ public class AudioCaptureService extends Service {
     private void restartCapture() {
         if (mWorkerHandler != null) mWorkerHandler.post(() -> {
             stopCapture();
-            if (mCaptureSource == CaptureSource.MIC) startMicCapture();
+            if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
+            else if (mCaptureSource == CaptureSource.MIC) startMicCapture();
             else if (mCaptureSource == CaptureSource.VIZUALIZER) startVizualizerCapture();
             else if (mCaptureSource == CaptureSource.SPOTIFY) startSpotifyCapture();
             else if (mCaptureSource == CaptureSource.NETWORK) startNetworkCapture();
@@ -1086,7 +1112,7 @@ public class AudioCaptureService extends Service {
                         } else {
                             Log.e(TAG, "MediaProjection is null or SDK < Q for internal capture");
                         }
-                    } else if (source == CaptureSource.VIZUALIZER || source == CaptureSource.SPOTIFY) {
+                    } else if (source == CaptureSource.SMART || source == CaptureSource.VIZUALIZER || source == CaptureSource.SPOTIFY) {
                         setupVisualizerCapture();
                         return;
                     } else if (source == CaptureSource.NETWORK) {
@@ -1129,6 +1155,7 @@ public class AudioCaptureService extends Service {
 
     public void stopCapture() { synchronized (mCaptureLock) { stopCaptureLocked(); } }
     private void stopCaptureLocked() {
+        if (mSmartSource != null) mSmartSource.stop();
         mCapturing = false; setRunning(false); updateOverlayVisibility();
         syncStatsToGlobal();
         
@@ -1196,6 +1223,10 @@ public class AudioCaptureService extends Service {
 
     private void processFrame(float[] uniqueMagnitudes, float hapticPeak, AudioProcessor.VisualizerConfig config, int configVersion) {
         if (config == null || configVersion != mPresetConfigVersion.get()) return;
+        if (mCaptureSource == CaptureSource.SMART && mSmartSource != null && !mRenderingSmartFrame) {
+            if (mSmartSource.isDatabasePlayback()) return;
+            if (uniqueMagnitudes != null && uniqueMagnitudes.length > 0) mSmartSource.recordLiveFrame(uniqueMagnitudes);
+        }
         try {
             long now = SystemClock.elapsedRealtime(); 
             float gain = mGlyphRenderer != null ? mGlyphRenderer.getSpectrumGain() : 1.0f; 
@@ -1271,6 +1302,7 @@ public class AudioCaptureService extends Service {
                     }
                     mLatestMagnitudes = mags;
                 }
+                if (mCaptureSource == CaptureSource.SMART && mSmartSource != null && mSmartSource.isDatabasePlayback()) return;
                 mLatestHapticPeak = latestDueFrame.hapticPeak;
                 mLatestUiPeak = latestDueFrame.uiPeak;
                 mLatestFlashlightPeak = latestDueFrame.flashlightPeak;

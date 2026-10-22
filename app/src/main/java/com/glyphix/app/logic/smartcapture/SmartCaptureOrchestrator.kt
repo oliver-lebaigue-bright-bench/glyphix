@@ -3,184 +3,125 @@ package com.glyphix.app.logic.smartcapture
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
-import android.util.Log
-import android.widget.Toast
 import com.glyphix.app.logic.AudioProcessor
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
-class SmartCaptureOrchestrator(
-    private val context: Context,
-    private val playbackEngine: SmartCapturePlaybackEngine
-) {
-    private val lightshowRepository = LightshowRepository()
-    private val sequenceCache = mutableMapOf<String, SongVisualSequence>()
-    
-    private var currentJob: Job? = null
-    
-    // Live Recording State
-    @Volatile private var isRecording = false
-    private var recordingSongKey: String? = null
-    private var recordingDurationMs: Long = 0L
-    private val recordedFrames = mutableListOf<GlyphFrame>()
-    
-    private var playbackStartRealtimeMs: Long = 0L
-    private var playbackOffsetMs: Long = 0L
-    private var isPlaying = false
-    
-    private fun showToast(msg: String) {
-        Log.d("SmartCapture", "Smart Capture status: $msg")
-        val prefs = context.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
-        val devMode = prefs.getBoolean("developer_mode_v2", false)
-        val debugToasts = prefs.getBoolean("smart_capture_debug_toasts", true)
-        if (!devMode || !debugToasts) return
+/** Owned by the capture service. Only numeric range magnitudes leave the device. */
+class SmartCaptureOrchestrator(private val context: Context, private val playbackEngine: SmartCapturePlaybackEngine) {
+    private val repository = LightshowRepository(context.cacheDir)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val cache = object : LinkedHashMap<String, SongVisualSequence>(8, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SongVisualSequence>?) = size > 4
+    }
+    private var lookup: Job? = null
+    private var key = ""
+    private var duration = 0L
+    private var offset = 0L
+    private var anchor = 0L
+    private var speed = 1f
+    private var playing = false
+    private var recording = false
+    private var loaded: SongVisualSequence? = null
+    private val frames = mutableListOf<GlyphFrame>()
+    private val prefs get() = context.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
 
-        Handler(Looper.getMainLooper()).post {
-            try {
-                Toast.makeText(context.applicationContext, "Smart Capture: $msg", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Log.e("SmartCapture", "Failed to show toast: ${e.message}")
-            }
-        }
+    private fun networkAllowed(): Boolean {
+        if (!prefs.getBoolean("smart_capture_wifi_only", true)) return true
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return false
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
-    private fun isWifiConnected(): Boolean {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
-        val network = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(network) ?: return false
-        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || 
-               caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-    }
-    
     @Synchronized
-    private fun finalizeRecording() {
-        if (!isRecording || recordingSongKey == null) return
-        
-        val framesToSave = recordedFrames.toList()
-        val key = recordingSongKey!!
-        val dur = recordingDurationMs
-        
-        isRecording = false
-        recordingSongKey = null
-        recordedFrames.clear()
-        
-        // If we recorded more than 20 seconds, or more than 70% of the song, let's keep it
-        val recordedLengthMs = if (framesToSave.isNotEmpty()) framesToSave.last().timestampMs - framesToSave.first().timestampMs else 0L
-        if (recordedLengthMs > 20000L || (dur > 0 && recordedLengthMs > dur * 0.7f)) {
-            Log.d("Orchestrator", "Finalized recording for $key: ${framesToSave.size} frames ($recordedLengthMs ms). Uploading...")
-            val sequence = SongVisualSequence(key, dur, framesToSave)
-            sequenceCache[key] = sequence
-            
-            CoroutineScope(Dispatchers.IO).launch {
-                lightshowRepository.uploadLightshow(sequence)
-                showToast("Live generation complete! Uploaded to db.glyphix.site.")
-            }
-        } else {
-            Log.d("Orchestrator", "Discarded recording for $key: Only $recordedLengthMs ms recorded (needed 20s+).")
-        }
-    }
-    
-    fun onSongChanged(
-        artist: String, 
-        title: String, 
-        durationMs: Long, 
-        startPositionMs: Long,
-        config: AudioProcessor.VisualizerConfig,
-        deviceType: Int = com.glyphix.app.model.DeviceProfile.DEVICE_NP2,
-        audioSessionId: Int = 0
-    ) {
-        val songKey = "${artist.trim().lowercase()}_${title.trim().lowercase()}"
-        
-        if (isRecording && recordingSongKey != songKey) {
-            finalizeRecording()
-        }
-        
-        val prefs = context.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
-        val wifiOnly = prefs.getBoolean("smart_capture_wifi_only", true)
-
-        showToast("Detected: $title by $artist")
-        
-        playbackStartRealtimeMs = SystemClock.elapsedRealtime()
-        playbackOffsetMs = startPositionMs
-        isPlaying = true
-        
-        currentJob?.cancel()
-        currentJob = CoroutineScope(Dispatchers.Main).launch {
-            if (sequenceCache.containsKey(songKey)) {
-                Log.d("Orchestrator", "Memory cache hit for $songKey")
-                showToast("Memory cache hit! Playing sequence.")
-                val sequence = sequenceCache[songKey]!!
-                playbackEngine.start(sequence, startPositionMs)
-                return@launch
-            }
-
-            if (wifiOnly && !isWifiConnected()) {
-                Log.d("Orchestrator", "Not on Wi-Fi and Wi-Fi only option enabled. Fallback to live visualizer.")
-                showToast("Wi-Fi only enabled. Using live visualizer.")
-                return@launch
-            }
-            
-            Log.d("Orchestrator", "Checking crowdsourced DB for $songKey")
-            showToast("Checking db.glyphix.site...")
-            val dbSequence = lightshowRepository.fetchLightshow(songKey)
-            if (dbSequence != null && dbSequence.frames.isNotEmpty()) {
-                Log.d("Orchestrator", "PocketBase DB hit for $songKey (${dbSequence.frames.size} frames)")
-                showToast("Crowdsourced lightshow found! Playing.")
-                sequenceCache[songKey] = dbSequence
-                playbackEngine.start(dbSequence, startPositionMs)
-                return@launch
-            }
-            
-            Log.d("Orchestrator", "Cache miss for $songKey. Starting Live-Recording on session $audioSessionId.")
-            showToast("Generating live on the fly... using targeted visualizer.")
-            
-            // Start recording live frames
-            synchronized(this@SmartCaptureOrchestrator) {
-                isRecording = true
-                recordingSongKey = songKey
-                recordingDurationMs = durationMs
-                recordedFrames.clear()
-            }
-        }
-    }
-    
-    /**
-     * Called by AudioCaptureService on every processed frame when fallback visualizer is active.
-     */
-    fun recordLiveFrame(intensities: FloatArray) {
-        if (!isRecording) return
-        if (!isPlaying) return
-        
-        val now = SystemClock.elapsedRealtime()
-        val currentPositionMs = playbackOffsetMs + (now - playbackStartRealtimeMs)
-        
-        synchronized(this) {
-            if (isRecording) {
-                recordedFrames.add(GlyphFrame(currentPositionMs, intensities.toList()))
-            }
-        }
-    }
-    
-    fun updatePlaybackPosition(positionMs: Long) {
-        playbackStartRealtimeMs = SystemClock.elapsedRealtime()
-        playbackOffsetMs = positionMs
-        playbackEngine.updatePosition(positionMs)
-    }
-    
-    fun onPlaybackPaused() {
-        isPlaying = false
-        playbackEngine.pause()
-    }
-    
-    fun onPlaybackStopped() {
-        isPlaying = false
-        finalizeRecording()
+    fun onSongChanged(artist: String, title: String, durationMs: Long, startPositionMs: Long,
+                      config: AudioProcessor.VisualizerConfig, deviceType: Int, audioSessionId: Int) {
+        val layout = "$deviceType:${config.presetKey}:" + config.uniqueRanges.joinToString(";") { "${it.lowHz},${it.highHz}" }
+        val next = SmartSourceRules.key(artist, title, durationMs, layout)
+        if (next == key) return
+        finishRecording()
+        lookup?.cancel()
         playbackEngine.stop()
-        currentJob?.cancel()
+        loaded = null
+        key = next
+        duration = durationMs
+        frames.clear()
+        recording = false
+        if (next.isEmpty()) return
+        offset = startPositionMs
+        anchor = SystemClock.elapsedRealtime()
+        val cached = cache[next]
+        if (cached != null) { loaded = cached; return }
+        recording = prefs.getBoolean("smart_capture_contribute", false)
+        lookup = scope.launch {
+            val sequence = repository.fetchLightshow(next, networkAllowed())
+            ensureActive()
+            synchronized(this@SmartCaptureOrchestrator) {
+                if (key != next) return@synchronized
+                if (sequence != null && sequence.durationMs == durationMs && sequence.frames.first().intensities.size == config.uniqueRanges.size) {
+                    cache[next] = sequence
+                    loaded = sequence
+                    recording = false
+                    frames.clear()
+                }
+            }
+        }
     }
+
+    @Synchronized
+    fun updatePlayback(positionMs: Long, isPlaying: Boolean, playbackSpeed: Float) {
+        offset = positionMs.coerceAtLeast(0)
+        anchor = SystemClock.elapsedRealtime()
+        playing = isPlaying
+        speed = playbackSpeed
+        val seq = loaded
+        if (seq != null && playing && speed == 1f) {
+            playbackEngine.start(seq, offset)
+        } else playbackEngine.pause()
+    }
+
+    @Synchronized
+    fun isDatabasePlayback(): Boolean = loaded != null && playing && speed == 1f && position() < duration
+
+    private fun position(): Long = offset + ((SystemClock.elapsedRealtime() - anchor) * speed).toLong()
+
+    @Synchronized
+    fun recordLiveFrame(intensities: FloatArray) {
+        if (!recording || !playing || speed != 1f || !prefs.getBoolean("smart_capture_contribute", false)) return
+        val time = position()
+        if (time !in 0..duration || frames.size >= 60000 || intensities.isEmpty() || intensities.any { !it.isFinite() || it < 0 }) return
+        val previous = frames.lastOrNull()?.timestampMs
+        // A seek invalidates this attempt; never upload a stitched or reordered song.
+        if (previous != null && (time < previous || time - previous > 500)) { recording = false; frames.clear(); return }
+        if (previous != null && time - previous < 33) return
+        frames.add(GlyphFrame(time, intensities.toList()))
+        if (time >= duration - 100) finishRecording()
+    }
+
+    private fun finishRecording() {
+        if (recording && prefs.getBoolean("smart_capture_contribute", false)) {
+            val seq = SongVisualSequence(key, duration, frames.toList())
+            if (seq.isValid()) {
+                cache[key] = seq
+                scope.launch {
+                    repository.saveLocal(seq)
+                    if (networkAllowed()) repository.uploadLightshow(seq)
+                }
+            }
+        }
+        recording = false
+        frames.clear()
+    }
+
+    @Synchronized
+    fun onPlaybackStopped() {
+        finishRecording()
+        key = ""
+        loaded = null
+        playing = false
+        lookup?.cancel()
+        playbackEngine.stop()
+    }
+
+    fun close() { onPlaybackStopped(); scope.cancel() }
 }

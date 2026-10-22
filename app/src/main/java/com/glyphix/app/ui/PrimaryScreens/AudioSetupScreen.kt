@@ -66,6 +66,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -277,6 +278,11 @@ fun AudioScreen(
         }
 
         // Desktop Companion Status Panel (Displayed when Desktop Companion input is selected or streaming to PC)
+        if (captureSource == AudioCaptureService.CaptureSource.SMART) {
+            AnimatedItem {
+                CaptureSourceCard(selectedSource = captureSource, onSourceSelected = onCaptureSourceChanged)
+            }
+        }
         if (showCompanionCard) {
             AnimatedItem {
                 DesktopCompanionStatusCard(
@@ -676,6 +682,7 @@ fun CaptureSourceCard(
         CardHeader(title = "Audio Input Source")
         Spacer(modifier = Modifier.height(10.dp))
         val mainSources = listOf(
+            Triple(AudioCaptureService.CaptureSource.SMART, "Smart Source", FontAwesomeIcons.Solid.Magic),
             Triple(
                 AudioCaptureService.CaptureSource.INTERNAL,
                 stringResource(R.string.capture_media_projection),
@@ -727,6 +734,35 @@ fun CaptureSourceCard(
             }
         }
 
+        if (selectedSource == AudioCaptureService.CaptureSource.SMART) {
+            val smartContext = LocalContext.current
+            val smartPrefs = remember { smartContext.getSharedPreferences("viz_prefs", android.content.Context.MODE_PRIVATE) }
+            var contribute by remember { mutableStateOf(smartPrefs.getBoolean("smart_capture_contribute", false)) }
+            var wifiOnly by remember { mutableStateOf(smartPrefs.getBoolean("smart_capture_wifi_only", true)) }
+            Text("Replays shared song visualisations without screen capture. Requires notification access to identify the song. Missing songs use Android Visualizer, which requires audio permission and may be unavailable for some players.", style = MaterialTheme.typography.bodySmall)
+            val smartAudioPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+            TextButton(onClick = { smartAudioPermission.launch(Manifest.permission.RECORD_AUDIO) }) {
+                Text("Allow live visualiser fallback")
+            }
+            TextButton(onClick = { smartContext.startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }) {
+                Text("Allow song identification")
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Share visualisation data (no audio)", modifier = Modifier.weight(1f))
+                Switch(checked = contribute, onCheckedChange = {
+                    contribute = it
+                    smartPrefs.edit().putBoolean("smart_capture_contribute", it).apply()
+                })
+            }
+            Text("Optional: sends a song identifier and numeric frequency-range levels to db.glyphix.site after a complete playback. Disabled by default.", style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Unmetered connections only", modifier = Modifier.weight(1f))
+                Switch(checked = wifiOnly, onCheckedChange = {
+                    wifiOnly = it
+                    smartPrefs.edit().putBoolean("smart_capture_wifi_only", it).apply()
+                })
+            }
+        }
         if (selectedSource == AudioCaptureService.CaptureSource.NETWORK) {
             val ip = AudioCaptureService.getLocalIpAddress()
             Spacer(modifier = Modifier.height(14.dp))

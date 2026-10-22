@@ -10,6 +10,7 @@ plugins {
 android {
     namespace 'com.glyphix.app'
     compileSdk 37
+    compileSdkMinor 0
 
     defaultConfig {
         applicationId "com.glyphix.app"
@@ -75,6 +76,7 @@ android {
 }
 
 kotlin {
+    jvmToolchain(21)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
     }

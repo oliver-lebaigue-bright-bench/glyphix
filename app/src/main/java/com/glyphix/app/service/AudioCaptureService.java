@@ -106,7 +106,7 @@ public class AudioCaptureService extends Service {
     private static final String TAG = "GlyphViz:Service";
     private static final String CHANNEL_ID = "glyph_viz_channel";
     private static final int NOTIF_ID = 1;
-    public enum CaptureSource { INTERNAL, MIC, VIZUALIZER, SPOTIFY, NETWORK, SMART }
+    public enum CaptureSource { INTERNAL, MIC, VIZUALIZER, SPOTIFY, NETWORK, SMART, SIMPMUSIC }
     private com.glyphix.app.logic.smartcapture.SmartSourceSession mSmartSource;
     private boolean mRenderingSmartFrame;
     private long mLastSmartSetupMs;
@@ -486,7 +486,7 @@ public class AudioCaptureService extends Service {
                     dispatchDueFrames(mVisualizerPendingFrames); 
                 }
                 
-                if (mCaptureSource == CaptureSource.VIZUALIZER || mCaptureSource == CaptureSource.NETWORK || mCaptureSource == CaptureSource.SPOTIFY) {
+                if (mCaptureSource == CaptureSource.VIZUALIZER || mCaptureSource == CaptureSource.NETWORK || mCaptureSource == CaptureSource.SPOTIFY || mCaptureSource == CaptureSource.SIMPMUSIC) {
                     // Only send a silent frame if we haven't sent anything for a while (e.g. 150ms)
                     // This avoids flicker when Visualizer callbacks are slower than 60fps (e.g. 20Hz / 50ms)
                     if (now - mLastSendMs >= 150 && mVisualizerConfig != null) processFrame(new float[0], 0f, mVisualizerConfig, mPresetConfigVersion.get());
@@ -691,7 +691,8 @@ public class AudioCaptureService extends Service {
 
     public static boolean isRunning() { return sIsRunning; }
     public void startVisualizer() {
-        if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
+        if (mCaptureSource == CaptureSource.SIMPMUSIC) startCaptureInternal(CaptureSource.SIMPMUSIC, 0, null);
+        else if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
         else if (mCaptureSource == CaptureSource.MIC) startMicCapture();
         else if (mCaptureSource == CaptureSource.VIZUALIZER) startVizualizerCapture();
         else if (mCaptureSource == CaptureSource.SPOTIFY) startSpotifyCapture();
@@ -706,7 +707,8 @@ public class AudioCaptureService extends Service {
     private void restartCapture() {
         if (mWorkerHandler != null) mWorkerHandler.post(() -> {
             stopCapture();
-            if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
+            if (mCaptureSource == CaptureSource.SIMPMUSIC) startCaptureInternal(CaptureSource.SIMPMUSIC, 0, null);
+        else if (mCaptureSource == CaptureSource.SMART) startCaptureInternal(CaptureSource.SMART, 0, null);
             else if (mCaptureSource == CaptureSource.MIC) startMicCapture();
             else if (mCaptureSource == CaptureSource.VIZUALIZER) startVizualizerCapture();
             else if (mCaptureSource == CaptureSource.SPOTIFY) startSpotifyCapture();
@@ -1112,6 +1114,14 @@ public class AudioCaptureService extends Service {
                         } else {
                             Log.e(TAG, "MediaProjection is null or SDK < Q for internal capture");
                         }
+                    } else if (source == CaptureSource.SIMPMUSIC) {
+                        // Publish readiness on the same worker that drains decoded PCM.
+                        final int generation = mMusicGeneration.get();
+                        mWorkerHandler.post(() -> {
+                            if (mCapturing && mCaptureSource == CaptureSource.SIMPMUSIC
+                                    && generation == mMusicGeneration.get()) mIntegratedMusicReady = true;
+                        });
+                        return;
                     } else if (source == CaptureSource.SMART || source == CaptureSource.VIZUALIZER || source == CaptureSource.SPOTIFY) {
                         setupVisualizerCapture();
                         return;
@@ -1155,6 +1165,9 @@ public class AudioCaptureService extends Service {
 
     public void stopCapture() { synchronized (mCaptureLock) { stopCaptureLocked(); } }
     private void stopCaptureLocked() {
+        mIntegratedMusicReady = false;
+        mMusicGeneration.incrementAndGet();
+        mMusicFrame.set(null);
         if (mSmartSource != null) mSmartSource.stop();
         mCapturing = false; setRunning(false); updateOverlayVisibility();
         syncStatsToGlobal();
@@ -1603,6 +1616,72 @@ public class AudioCaptureService extends Service {
         synchronized (mVisualizerPendingFrames) { 
             mVisualizerPendingFrames.addLast(frame); 
             dispatchDueFrames(mVisualizerPendingFrames); 
+        }
+    }
+
+    private volatile boolean mIntegratedMusicReady;
+    private final java.util.concurrent.atomic.AtomicReference<IntegratedMusicFrame> mMusicFrame =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    private final java.util.concurrent.atomic.AtomicBoolean mMusicDrainPosted =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final class IntegratedMusicFrame {
+        final short[] samples;
+        final int sampleRate;
+        final int generation;
+        IntegratedMusicFrame(short[] samples, int sampleRate, int generation) {
+            this.samples = samples; this.sampleRate = sampleRate; this.generation = generation;
+        }
+    }
+    private final java.util.concurrent.atomic.AtomicInteger mMusicGeneration =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    /** Bounded latest-frame mailbox; the player thread never runs FFT or hardware work. */
+    public void submitIntegratedMusicPcm(short[] mono, int sampleRate) {
+        if (!mIntegratedMusicReady || !mCapturing || mCaptureSource != CaptureSource.SIMPMUSIC || mono.length == 0
+                || mono.length > 8192 || sampleRate < 8000 || sampleRate > 192000) return;
+        mMusicFrame.set(new IntegratedMusicFrame(mono.clone(), sampleRate, mMusicGeneration.get()));
+        scheduleIntegratedMusicDrain();
+    }
+    private void scheduleIntegratedMusicDrain() {
+        Handler handler = mWorkerHandler;
+        if (handler != null && mMusicDrainPosted.compareAndSet(false, true)) {
+            if (!handler.post(this::drainIntegratedMusic)) mMusicDrainPosted.set(false);
+        }
+    }
+    private void drainIntegratedMusic() {
+        try {
+            IntegratedMusicFrame frame = mMusicFrame.getAndSet(null);
+            if (frame == null || frame.generation != mMusicGeneration.get() || !mCapturing
+                    || mCaptureSource != CaptureSource.SIMPMUSIC || mVisualizerConfig == null) return;
+            if (mCurrentSampleRate != frame.sampleRate) {
+                mCurrentSampleRate = frame.sampleRate;
+                mAudioProcessor.updateFFTSize(frame.sampleRate);
+                try {
+                    mVisualizerConfig = loadVisualizerConfig(mPresetKey, frame.sampleRate);
+                    mPresetConfigVersion.incrementAndGet();
+                } catch (IOException | JSONException error) {
+                    Log.w(TAG, "Cannot reload music frequency mapping", error);
+                    return;
+                }
+            }
+            sendPcmToPc(frame.samples, frame.samples.length);
+            AudioProcessor.AudioFrameResult result = mAudioProcessor.processAudioFrame(
+                    frame.samples, frame.samples.length, mVisualizerConfig,
+                    mHapticEnabled ? mHapticRange : null,
+                    mFlashlightEnabled ? mFlashlightRange : null, true);
+            if (result != null) {
+                PendingFrame pending = new PendingFrame(result.uniqueMagnitudes, result.rawFFT,
+                        result.decayedFFT, result.hapticPeak, result.uiPeak, result.flashlightPeak,
+                        mVisualizerConfig, mPresetConfigVersion.get(),
+                        SystemClock.elapsedRealtime() + mLatencyCompensationMs);
+                synchronized (mVisualizerPendingFrames) {
+                    mVisualizerPendingFrames.addLast(pending);
+                    dispatchDueFrames(mVisualizerPendingFrames);
+                }
+            }
+        } finally {
+            mMusicDrainPosted.set(false);
+            if (mMusicFrame.get() != null) scheduleIntegratedMusicDrain();
         }
     }
 

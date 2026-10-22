@@ -166,7 +166,7 @@ public class AudioCaptureService extends Service {
         return mCaptureSource;
     }
 
-    public static AudioCaptureService sInstance = null;
+    public static volatile AudioCaptureService sInstance = null;
 
     private GlobalStatsRepository mGlobalStatsRepository;
     private long mUnsyncedTimeMs = 0;

@@ -25,6 +25,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Prepare pinned sources and verify patches
         run: python3 simpmusic-integration/prepare.py
       - name: Test PCM conversion

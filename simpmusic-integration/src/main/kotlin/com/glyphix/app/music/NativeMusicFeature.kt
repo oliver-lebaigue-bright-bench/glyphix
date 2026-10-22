@@ -53,11 +53,13 @@ class NativeMusicFeature : MusicFeature {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var metadataJob: Job? = null
     private var owner: ComponentActivity? = null
+    private var openMusic: (() -> Unit)? = null
     private var activityModule: org.koin.core.module.Module? = null
     private var binding: ServiceConnection? = null
 
-    override fun attach(activity: ComponentActivity) {
+    override fun attach(activity: ComponentActivity, onOpenMusic: () -> Unit) {
         owner = activity
+        openMusic = onOpenMusic
         activityModule = module { single<ComponentActivity> { activity } }.also { loadKoinModules(it) }
         GlyphixPcmBridge.sink = { samples, rate ->
             AudioCaptureService.sInstance?.submitIntegratedMusicPcm(samples, rate)
@@ -112,6 +114,7 @@ class NativeMusicFeature : MusicFeature {
         activityModule?.let { unloadKoinModules(it) }
         activityModule = null
         owner = null
+        openMusic = null
         // The callback only references the service singleton. Background playback keeps PCM sync.
     }
 
@@ -121,9 +124,14 @@ class NativeMusicFeature : MusicFeature {
     }
 
     override fun onIntent(intent: Intent) {
+        if (intent.action == "androidx.car.app.media.action.SHOW_MEDIA_PLAYBACK") {
+            openMusic?.invoke()
+            return
+        }
         val data = intent.data ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri() ?: return
         // Spotify remains owned by Glyphix's existing OAuth integration.
         if (data.scheme == "glyphix") return
+        openMusic?.invoke()
         viewModel.setIntent(GenericIntent(intent.action, data.toKmpUriOrNull(), intent.type))
     }
 

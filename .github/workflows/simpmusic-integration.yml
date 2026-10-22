@@ -26,13 +26,15 @@ jobs:
           java-version: '21'
       - uses: android-actions/setup-android@v3
         with:
+          cmdline-tools-version: '16111833'
           packages: platform-tools
+          log-accepted-android-sdk-licenses: false
       - name: Prepare pinned sources and verify patches
         run: python3 simpmusic-integration/prepare.py
       - name: Test PCM conversion
         run: bash tests/simpmusic/run.sh
       - name: Install Android platform
-        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
+        run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'
       - name: Create development signing key
         run: |
           mkdir -p keystore

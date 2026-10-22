@@ -1,0 +1,112 @@
+diff --git a/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmAudioProcessor.kt b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmAudioProcessor.kt
+new file mode 100644
+index 0000000..69ffc94
+--- /dev/null
++++ b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmAudioProcessor.kt
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: GPL-3.0-only
++package com.maxrave.media3.audio
++
++import androidx.media3.common.C
++import androidx.media3.common.audio.AudioProcessor
++import androidx.media3.common.audio.BaseAudioProcessor
++import androidx.media3.common.util.UnstableApi
++import java.nio.ByteBuffer
++
++object GlyphixPcmBridge {
++    @Volatile var sink: ((ShortArray, Int) -> Unit)? = null
++}
++
++/** Pass-through tap. FFT and device work run on Glyphix's worker, never here. */
++@UnstableApi
++class GlyphixPcmAudioProcessor : BaseAudioProcessor() {
++    override fun onConfigure(format: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat =
++        if (format.encoding == C.ENCODING_PCM_16BIT || format.encoding == C.ENCODING_PCM_FLOAT) format
++        else AudioProcessor.AudioFormat.NOT_SET
++
++    override fun queueInput(input: ByteBuffer) {
++        val output = replaceOutputBuffer(input.remaining())
++        output.put(input).flip()
++        val listener = GlyphixPcmBridge.sink ?: return
++        val copy = output.asReadOnlyBuffer()
++        val floats = inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT
++        while (copy.remaining() >= inputAudioFormat.channelCount * if (floats) 4 else 2) {
++            val mono = GlyphixPcmDecoder.readMono(copy, inputAudioFormat.channelCount, floats, 8192)
++            // A failed visualisation must not interrupt playback.
++            try { listener(mono, inputAudioFormat.sampleRate) } catch (_: RuntimeException) { }
++        }
++    }
++}
+diff --git a/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmDecoder.java b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmDecoder.java
+new file mode 100644
+index 0000000..2648a0c
+--- /dev/null
++++ b/media/media3/src/main/java/com/maxrave/media3/audio/GlyphixPcmDecoder.java
+@@ -0,0 +1,27 @@
++// SPDX-License-Identifier: GPL-3.0-only
++package com.maxrave.media3.audio;
++
++import java.nio.ByteBuffer;
++import java.nio.ByteOrder;
++
++/** Android-independent PCM downmix, shared by the tap and host-side tests. */
++public final class GlyphixPcmDecoder {
++    private GlyphixPcmDecoder() {}
++    public static short[] readMono(ByteBuffer input, int channels, boolean floats, int maxFrames) {
++        if (channels < 1 || channels > 32 || maxFrames < 1) throw new IllegalArgumentException("Invalid PCM format");
++        input.order(ByteOrder.LITTLE_ENDIAN);
++        int count = Math.min(maxFrames, input.remaining() / (channels * (floats ? 4 : 2)));
++        short[] result = new short[count];
++        for (int frame = 0; frame < count; frame++) {
++            double sum = 0;
++            for (int channel = 0; channel < channels; channel++) {
++                if (floats) {
++                    float value = input.getFloat();
++                    sum += Float.isFinite(value) ? Math.max(-1.0, Math.min(1.0, value)) * 32767.0 : 0.0;
++                } else sum += input.getShort();
++            }
++            result[frame] = (short) Math.max(-32768, Math.min(32767, Math.round(sum / channels)));
++        }
++        return result;
++    }
++}
+diff --git a/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt b/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt
+index f98c3d9..29e30c4 100644
+--- a/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt
++++ b/media/media3/src/main/java/com/maxrave/media3/di/Media3ServiceModule.kt
+@@ -490,11 +490,11 @@ private fun provideRendererFactory(context: Context): DefaultRenderersFactory =
+         ): AudioSink =
+             DefaultAudioSink
+                 .Builder(context)
+-                .setEnableFloatOutput(enableFloatOutput)
++                .setEnableFloatOutput(false)
+                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                 .setAudioProcessorChain(
+                     DefaultAudioSink.DefaultAudioProcessorChain(
+-                        emptyArray(),
++                        arrayOf(com.maxrave.media3.audio.GlyphixPcmAudioProcessor()),
+                         SilenceSkippingAudioProcessor(
+                             2_000_000,
+                             (20_000 / 2_000_000).toFloat(),
+diff --git a/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt b/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt
+index 3b789f1..594555a 100644
+--- a/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt
++++ b/media/media3/src/main/java/com/maxrave/media3/exoplayer/CrossfadeExoPlayerAdapter.kt
+@@ -580,7 +580,7 @@ internal class CrossfadeExoPlayerAdapter(
+                 ): AudioSink =
+                     DefaultAudioSink
+                         .Builder(context)
+-                        .setEnableFloatOutput(enableFloatOutput)
++                        .setEnableFloatOutput(false)
+                         .setEnableAudioOutputPlaybackParameters(enableAudioTrackPlaybackParams)
+                         .setAudioProcessorChain(
+                             DefaultAudioSink.DefaultAudioProcessorChain(
+@@ -593,7 +593,7 @@ internal class CrossfadeExoPlayerAdapter(
+                                 // crossfade has to be able to sweep them out along with it rather
+                                 // than the other way round. The sleep fade stays last, because it
+                                 // is the master attenuation and has to survive everything above.
+-                                arrayOf(equalizer, echo, reverb, crossfadeFilter, sleepFade),
++                                arrayOf(equalizer, echo, reverb, crossfadeFilter, sleepFade, com.maxrave.media3.audio.GlyphixPcmAudioProcessor()),
+                                 SilenceSkippingAudioProcessor(
+                                     2_000_000,
+                                     (20_000 / 2_000_000).toFloat(),

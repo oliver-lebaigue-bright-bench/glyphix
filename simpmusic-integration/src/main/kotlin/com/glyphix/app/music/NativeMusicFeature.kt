@@ -30,7 +30,15 @@ import com.maxrave.simpmusic.viewModel.SharedViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.toBitmap
+import com.glyphix.app.ui.MainViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import com.maxrave.domain.mediaservice.handler.ToastType
@@ -73,11 +81,21 @@ class NativeMusicFeature : MusicFeature {
         }
         if (metadataJob == null) {
             // Process lifetime collector: track changes still update presets with the screen off.
+            val applicationContext = activity.applicationContext
             metadataJob = applicationScope.launch {
-                handler.nowPlayingState.collect { track ->
+                combine(handler.nowPlayingState, handler.controlState.map { it.isPlaying }.distinctUntilChanged()) { track, playing ->
+                    track to playing
+                }.collectLatest { (track, playing) ->
+                    val metadata = track.mediaItem.metadata
                     if (AudioCaptureService.sInstance?.captureSource == AudioCaptureService.CaptureSource.SIMPMUSIC) {
-                        val metadata = track.mediaItem.metadata
                         AutoPresetEngine.getInstance().updateMediaMetadata(metadata.title, metadata.artist, metadata.albumTitle, null)
+                    }
+                    if (playing) {
+                        val artwork = metadata.artworkUri?.let { uri ->
+                            applicationContext.imageLoader.execute(ImageRequest.Builder(applicationContext)
+                                .data(uri).size(256).allowHardware(false).build()).image?.toBitmap()
+                        }
+                        MainViewModel.instance?.setMusicArtwork(artwork)
                     }
                 }
             }
@@ -95,6 +113,11 @@ class NativeMusicFeature : MusicFeature {
         activityModule = null
         owner = null
         // The callback only references the service singleton. Background playback keeps PCM sync.
+    }
+
+    override fun onSourceSelected() {
+        val metadata = handler.nowPlayingState.value.mediaItem.metadata
+        AutoPresetEngine.getInstance().updateMediaMetadata(metadata.title, metadata.artist, metadata.albumTitle, null)
     }
 
     override fun onIntent(intent: Intent) {

@@ -518,6 +518,9 @@ internal class MusicThemeHandler(
 
     private val mediaCallback = object : MediaController.Callback() {
         override fun onMetadataChanged(metadata: MediaMetadata?) {
+            // The native music handler supplies metadata and decoded artwork directly.
+            if (com.glyphix.app.music.MusicIntegration.available &&
+                activeMediaController?.packageName == context.packageName) return
             val artwork = getArtworkBitmap(metadata)
             viewModel.setMusicArtwork(artwork)
             val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
@@ -546,6 +549,8 @@ internal class MusicThemeHandler(
                 activeMediaController = newController
                 activeMediaController?.registerCallback(mediaCallback)
 
+                if (com.glyphix.app.music.MusicIntegration.available &&
+                    activeMediaController?.packageName == context.packageName) return
                 val meta = activeMediaController?.metadata
                 val artwork = getArtworkBitmap(meta)
                 viewModel.setMusicArtwork(artwork)

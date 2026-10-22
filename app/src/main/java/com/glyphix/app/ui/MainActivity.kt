@@ -374,6 +374,9 @@ class MainActivity : ComponentActivity() {
             startForegroundService(intent)
 
             val source = viewModel.captureSource.value
+            if (source == AudioCaptureService.CaptureSource.SIMPMUSIC) {
+                com.glyphix.app.music.MusicIntegration.feature?.onSourceSelected()
+            }
             s.setCaptureSource(source)
             when (source) {
                 AudioCaptureService.CaptureSource.INTERNAL -> launchProjection()
@@ -395,6 +398,9 @@ class MainActivity : ComponentActivity() {
 
     private fun switchCaptureSource(source: AudioCaptureService.CaptureSource) {
         viewModel.setCaptureSource(source)
+        if (source == AudioCaptureService.CaptureSource.SIMPMUSIC) {
+            com.glyphix.app.music.MusicIntegration.feature?.onSourceSelected()
+        }
         val s = service
         if (s != null && s.isVisualizerRunning) {
             when (source) {

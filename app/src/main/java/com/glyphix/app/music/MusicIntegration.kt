@@ -5,7 +5,7 @@ import androidx.compose.ui.Modifier
 
 /** Native music implementation is installed by the integration build's Application. */
 interface MusicFeature {
-    fun attach(activity: androidx.activity.ComponentActivity) {}
+    fun attach(activity: androidx.activity.ComponentActivity, onOpenMusic: () -> Unit) {}
     fun detach(activity: androidx.activity.ComponentActivity) {}
     fun onIntent(intent: android.content.Intent) {}
     fun onSourceSelected() {}

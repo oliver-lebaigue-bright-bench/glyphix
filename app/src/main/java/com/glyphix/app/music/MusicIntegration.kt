@@ -8,6 +8,7 @@ interface MusicFeature {
     fun attach(activity: androidx.activity.ComponentActivity) {}
     fun detach(activity: androidx.activity.ComponentActivity) {}
     fun onIntent(intent: android.content.Intent) {}
+    fun onSourceSelected() {}
     @Composable fun Screen(modifier: Modifier)
     @Composable fun Player(modifier: Modifier, onOpenMusic: () -> Unit)
 }

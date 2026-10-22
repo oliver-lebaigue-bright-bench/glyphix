@@ -9,6 +9,7 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -53,6 +54,22 @@ internal fun LicenseScreen(
 
             ScreenTitle(text = stringResource(R.string.license_title).uppercase())
 
+            if (com.glyphix.app.music.MusicIntegration.available) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val musicLicense = androidx.compose.runtime.remember {
+                    context.assets.open("SimpMusic-GPL-3.0.txt").bufferedReader().use { it.readText() }
+                }
+                var expanded by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                ExpressiveCard {
+                    Text("SimpMusic and SimpMusic core", style = MaterialTheme.typography.titleMedium)
+                    Text("Music engine and interface by maxrave-dev and contributors. Native Glyphix integration modifications are provided under GPL-3.0-only. Original Glyphix source retains its MIT notice.")
+                    TextButton(onClick = { expanded = !expanded }) {
+                        Text(if (expanded) "Hide GPL licence" else "Read GPL licence")
+                    }
+                    if (expanded) Text(musicLicense, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.height(16.dp))
+            }
             ExpressiveCard {
                 when (val status = licenseStatus) {
                     is MainViewModel.LicenseStatus.Loading -> {

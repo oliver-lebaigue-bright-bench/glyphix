@@ -1,0 +1,180 @@
+<?xml version='1.0' encoding='utf-8'?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+  <uses-sdk tools:overrideLibrary="com.nothing.thirdparty" />
+  <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:ignore="ForegroundServicesPolicy" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.BLUETOOTH" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+  <attribution android:tag="glyphixTag" android:label="@string/app_name" />
+  <queries>
+    <package android:name="com.spotify.music" />
+    <intent>
+      <action android:name="android.media.browse.MediaBrowserService" />
+    </intent>
+    <intent>
+      <action android:name="android.intent.action.MEDIA_BUTTON" />
+    </intent>
+  </queries>
+  <application android:enableOnBackInvokedCallback="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:roundIcon="@mipmap/ic_launcher_round" android:supportsRtl="true" android:theme="@style/Theme.Glyphix" tools:ignore="UnusedAttribute" android:name="com.glyphix.app.music.GlyphixMusicApplication">
+    <meta-data android:name="NothingKey" android:value="4fce0591-cbd9-4b1d-9cd0-646a2d2aecea" />
+    <activity android:name=".ui.MainActivity" android:exported="true" android:launchMode="singleTop" android:windowSoftInputMode="adjustResize">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+        <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="glyphix" android:host="spotify-callback" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="http" />
+        <data android:scheme="https" />
+        <data android:host="youtube.com" />
+        <data android:host="m.youtube.com" />
+        <data android:host="www.youtube.com" />
+        <data android:host="music.youtube.com" />
+        <data android:pathPrefix="/v/" />
+        <data android:pathPrefix="/embed/" />
+        <data android:pathPrefix="/watch" />
+        <data android:pathPrefix="/channel/" />
+        <data android:pathPrefix="/user/" />
+        <data android:pathPrefix="/c/" />
+        <data android:pathPrefix="/playlist" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="http" />
+        <data android:scheme="https" />
+        <data android:host="youtu.be" />
+        <data android:pathPrefix="/" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="vnd.youtube" />
+        <data android:scheme="vnd.youtube.launch" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" />
+        <data android:host="simpmusic.org" />
+        <data android:pathPrefix="/app/" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="simpmusic" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:host="lastfm-auth" android:scheme="wordbyword" />
+      </intent-filter>
+    </activity>
+    <activity android:name=".ui.AodActivity" android:exported="false" android:screenOrientation="portrait" android:showWhenLocked="true" android:turnScreenOn="true" android:theme="@style/Theme.Glyphix" />
+    <activity android:name=".util.PermissionTrampolineActivity" android:theme="@style/Theme.Transparent" android:taskAffinity="" android:excludeFromRecents="true" android:noHistory="true" android:exported="false" />
+    <service android:name=".service.AudioCaptureService" android:exported="false" android:foregroundServiceType="mediaProjection|microphone|specialUse" android:stopWithTask="false">
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="glyphix" />
+    </service>
+    <service android:name=".service.VisualizerService" android:exported="false" />
+    <service android:name=".service.VisualizerTileService" android:exported="true" android:icon="@drawable/ic_notif_monochrome" android:label="@string/app_name" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+      <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="true" />
+    </service>
+    <service android:name=".service.HapticsTileService" android:exported="true" android:icon="@drawable/ic_notif_monochrome" android:label="Glyph Haptics" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+      <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="true" />
+    </service>
+    <service android:name=".service.GlyphNotificationListener" android:label="@string/app_name" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
+      <intent-filter>
+        <action android:name="android.service.notification.NotificationListenerService" />
+      </intent-filter>
+    </service>
+    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+    </provider>
+    <receiver android:name=".widget.VisualizerWidget" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        <action android:name="com.glyphix.app.REFRESH_WIDGET" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/visualizer_widget_info" />
+    </receiver>
+    <provider android:name="com.glyphix.app.music.MusicFileProvider" android:authorities="${applicationId}.FileProvider" android:exported="false" android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" />
+    </provider>
+    <meta-data android:name="androidx.car.app.TintableAttributionIcon" android:resource="@drawable/monochrome" />
+    <service android:name="com.maxrave.media3.service.SimpleMediaService" android:exported="true" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" tools:ignore="ExportedService">
+      <intent-filter>
+        <action android:name="androidx.media3.session.MediaSessionService" />
+        <action android:name="androidx.media3.session.MediaLibraryService" />
+        <action android:name="android.media.browse.MediaBrowserService" />
+        <action android:name="android.intent.action.MEDIA_BUTTON" />
+      </intent-filter>
+    </service>
+    <service android:name="com.maxrave.media3.service.download.MusicDownloadService" android:exported="false" android:foregroundServiceType="dataSync">
+      <intent-filter>
+        <action android:name="androidx.media3.exoplayer.downloadService.action.RESTART" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+    </service>
+    <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MEDIA_BUTTON" />
+      </intent-filter>
+    </receiver>
+    <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
+    <meta-data android:name="androidx.car.app.minCarApiLevel" android:value="8" />
+    <service android:name="com.maxrave.media3.carapp.SimpMusicCarAppService" android:exported="true" tools:ignore="ExportedService">
+      <intent-filter>
+        <action android:name="androidx.car.app.CarAppService" />
+        <action android:name="androidx.car.app.media.action.SHOW_MEDIA_PLAYBACK" />
+        <category android:name="androidx.car.app.category.MEDIA" />
+      </intent-filter>
+    </service>
+  </application>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+</manifest>

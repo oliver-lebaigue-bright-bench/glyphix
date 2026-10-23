@@ -14,6 +14,8 @@ Experimental integration branch for Glyphix. This is a source integration, not a
 - Track metadata reaches the existing automatic preset engine and artwork drives Glyphix’s Music theme without requiring notification access.
 - Music service shutdown preserves the shared Glyphix process and reusable player graph.
 - Native music playback/download services, media buttons, Android Auto service declaration, sharing provider and supported link intent routes within the Glyphix package.
+- Turntable, playlists and listening-insights launcher widgets, linked to Glyphix’s activity and the same player.
+- Automatic music backup scheduling follows the existing music settings. Backup files and retention use a Glyphix-specific folder/prefix, separate from an installed SimpMusic app.
 - Pinned upstream source commits, reproducible patches, PCM conversion tests and a separate Android integration build workflow.
 
 ## Build
@@ -30,7 +32,7 @@ keytool -genkeypair -keystore keystore/debug.keystore -storepass android \
 bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphix:lintDebug
 ```
 
-Create the key only if `keystore/debug.keystore` does not already exist. The APK is produced under `app/build/outputs/apk/debug/`. Normal Glyphix builds continue to use `app/build.gradle`; the integration uses `app/build-simpmusic.gradle` with the upstream toolchain and native libraries. No additional account or server is required to prepare the source. Individual upstream features can still require their normal accounts or remote services.
+Create the key only if `keystore/debug.keystore` does not already exist. The APK is produced under `app/build/outputs/apk/debug/`. Normal Glyphix builds continue to use `app/build.gradle`; the integration uses `app/build-simpmusic.gradle` with the upstream toolchain and native libraries. No additional account or server is required to prepare the source. Individual upstream features can still require their normal accounts or remote services. The normal music build includes the real Cast and Last.fm modules. Use `--foss` with the preparer to select their no-op alternatives. Last.fm needs your own application credentials; an explicit `--credentials PATH` may supply a local `.properties` file with `LASTFM_API_KEY` and `LASTFM_SECRET`. `SENTRY_DSN` is optional and reporting remains disabled when it is absent. Only those named fields are read from the explicitly supplied file, and it is never committed.
 
 The preparer fetches the exact commits in `upstream.lock.json`, exports clean source snapshots and applies the checked-in patches. Existing developer checkouts can be supplied read-only with `--simpmusic-source PATH --core-source PATH`. It replaces only its own marked `.simpmusic-build` directory and never edits the source checkouts. The prepared libraries explicitly select Android 37.0 through AGP’s minor API DSL, matching Google’s published platform package. Generated code is ignored by Git. Patch updates are explicit; neither upstream's moving main branch is used implicitly.
 
@@ -42,8 +44,8 @@ This branch is not a claim of complete feature parity. In particular:
 
 - Android compilation, manifest merging and runtime dependency compatibility have not yet passed verification.
 - Real devices must verify notifications/background playback, search/playback, downloads, authentication, lyrics, navigation, theme switching, recreation and background Glyph output.
-- The default integration uses upstream's FOSS modules. Google Cast, Last.fm credentials and crash reporting are not enabled. No upstream secrets are copied.
-- SimpMusic's launcher widgets and Android-app-only automatic backup scheduler are not ported into Glyphix yet. Account migration/import and backup restore require explicit testing; no existing SimpMusic app data is silently imported.
+- Cast support is included but needs a real receiver for acceptance testing. Last.fm requires separately supplied application credentials. No upstream secrets are copied and no new crash reporting runs by default.
+- The launcher widgets and automatic backup scheduler are wired in from the pinned Android source, with host resources and activity routing. Their behaviour, backup restore and account migration/import require explicit testing; no existing SimpMusic app data is silently imported.
 - Crossfade taps observe each player after its gain stages; they are not a sample-accurate sum of both output streams. Hardware offload, remote casting and rendered-ahead audio timing require device validation. Existing latency compensation remains available.
 - Smart Source's notification-based recording/cache orchestration is not rewritten to use the built-in playback clock in this change. Built-in music has its own direct PCM source; the existing Smart Source remains separately selectable.
 - Music settings still contain upstream-specific settings and some upstream artwork-led layouts. A complete Glyphix-specific restyling of every secondary screen remains outstanding.

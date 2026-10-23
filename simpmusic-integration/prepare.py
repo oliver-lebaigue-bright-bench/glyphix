@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+from android_extras import prepare_android_extras
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -27,6 +28,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--simpmusic-source', type=Path, help='Optional existing Git checkout, used read-only')
     parser.add_argument('--core-source', type=Path, help='Optional existing Git checkout, used read-only')
+    parser.add_argument('--foss', action='store_true', help='Use upstream no-op Cast and Last.fm modules')
+    parser.add_argument('--credentials', type=Path, help='Explicit optional .properties file containing LASTFM_API_KEY, LASTFM_SECRET or SENTRY_DSN')
     args = parser.parse_args()
     lock = json.loads((HERE / 'upstream.lock.json').read_text())
     output = ROOT / '.simpmusic-build'
@@ -67,7 +70,7 @@ def main():
         build = (source / 'build.gradle.kts').read_text().replace('plugins {', 'plugins {\n    id("com.google.gms.google-services") version "4.4.4" apply false', 1)
         (source / 'build.gradle.kts').write_text(build)
         properties = (source / 'gradle.properties').read_text()
-        properties = properties.replace('isFullBuild=true', 'isFullBuild=false').replace('org.gradle.unsafe.configuration-cache=true', 'org.gradle.configuration-cache=false')
+        properties = properties.replace('isFullBuild=true', 'isFullBuild=' + ('false' if args.foss else 'true')).replace('org.gradle.unsafe.configuration-cache=true', 'org.gradle.configuration-cache=false')
         (source / 'gradle.properties').write_text(properties)
         # Use the caller's JDK 21 instead of forcing upstream's Microsoft vendor.
         (source / 'gradle/gradle-daemon-jvm.properties').unlink(missing_ok=True)
@@ -76,6 +79,13 @@ def main():
         if local.exists():
             sdk = [line for line in local.read_text().splitlines() if line.startswith('sdk.dir=')]
             (source / 'local.properties').write_text('\n'.join(sdk) + '\n')
+        if args.credentials:
+            allowed = {'LASTFM_API_KEY', 'LASTFM_SECRET', 'SENTRY_DSN'}
+            selected = [line for line in args.credentials.read_text().splitlines() if line.split('=', 1)[0].strip() in allowed]
+            with (source / 'local.properties').open('a') as config:
+                config.write('\n'.join(selected) + '\n')
+        extras = prepare_android_extras(source, ROOT)
+        print('Prepared Android extras:', extras[0], 'source files with resolved resources')
         (source / '.glyphix-generated').write_text(json.dumps(lock, indent=2) + '\n')
         if output.exists():
             shutil.rmtree(output)

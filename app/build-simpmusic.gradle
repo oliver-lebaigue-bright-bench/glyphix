@@ -17,7 +17,7 @@ android {
         minSdk 26
         targetSdk 36
         versionCode 1
-        versionName '1.0'
+        versionName '1.0-beta.2'
     }
 
     signingConfigs {
@@ -53,8 +53,10 @@ android {
     sourceSets {
         main {
             java.srcDir '../simpmusic-integration/src/main/kotlin'
+            java.srcDir '../.simpmusic-build/glyphix-android-extras/src'
             manifest.srcFile '../simpmusic-integration/src/main/AndroidManifest.xml'
             res.srcDir '../simpmusic-integration/src/main/res'
+            res.srcDir '../.simpmusic-build/glyphix-android-extras/res'
             assets.srcDir '../simpmusic-integration/licenses'
         }
     }
@@ -83,6 +85,14 @@ kotlin {
 }
 
 dependencies {
+    implementation libs.glance
+    implementation libs.glance.appwidget
+    implementation libs.glance.material3
+    if (rootProject.findProperty('isFullBuild')?.toString() == 'true') {
+        implementation project(':crashlytics')
+    } else {
+        implementation project(':crashlytics-empty')
+    }
     implementation project(':composeApp')
     implementation project(':data')
     implementation project(':domain')

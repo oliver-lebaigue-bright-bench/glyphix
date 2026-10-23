@@ -7,6 +7,14 @@ import android.util.Base64
 import android.util.Log
 import com.glyphix.app.model.UserProfile
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.MutableData
+import com.google.firebase.database.Transaction
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -27,7 +35,28 @@ class UserRepository {
 
     suspend fun saveUserProfile(profile: UserProfile) {
         try {
-            database.child(profile.userId).setValue(profile).await()
+            require(profile.userId == FirebaseAuth.getInstance().currentUser?.uid) {
+                "Profile updates require the authenticated user"
+            }
+            suspendCancellableCoroutine<Unit> { continuation ->
+                database.child(profile.userId).runTransaction(object : Transaction.Handler {
+                    override fun doTransaction(data: MutableData): Transaction.Result {
+                        val previousTime = (data.child("totalVisualizedTime").value as? Number)?.toLong() ?: 0L
+                        val createdAt = (data.child("createdAt").value as? Number)?.toLong() ?: profile.createdAt
+                        data.value = profile.copy(
+                            totalVisualizedTime = maxOf(previousTime, profile.totalVisualizedTime),
+                            createdAt = createdAt
+                        )
+                        return Transaction.success(data)
+                    }
+                    override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                        if (!continuation.isActive) return
+                        if (error != null) continuation.resumeWithException(error.toException())
+                        else if (!committed) continuation.resumeWithException(IllegalStateException("Profile update aborted"))
+                        else continuation.resume(Unit)
+                    }
+                })
+            }
         } catch (e: Exception) {
             Log.e("UserRepository", "Error saving profile", e)
             throw e

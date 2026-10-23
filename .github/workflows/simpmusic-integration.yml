@@ -35,10 +35,14 @@ jobs:
         run: bash tests/simpmusic/run.sh
       - name: Install Android platform
         run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'
-      - name: Create development signing key
-        run: |
-          mkdir -p keystore
-          keytool -genkeypair -keystore keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Glyphix Development,O=Glyphix,C=IE'
+      - uses: actions/cache@v4
+        with:
+          path: keystore/debug.keystore
+          key: glyphix-beta-debug-signing-v1
+      - name: Prepare stable beta signing key
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: bash tools/prepare-beta-signing.sh
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false

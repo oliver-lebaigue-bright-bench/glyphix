@@ -111,7 +111,7 @@ index 3b789f1..594555a 100644
                                      2_000_000,
                                      (20_000 / 2_000_000).toFloat(),
 diff --git a/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt b/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt
-index 64bed3e..43c6b6c 100644
+index 64bed3e..f3315a9 100644
 --- a/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt
 +++ b/media/media3/src/main/java/com/maxrave/media3/service/SimpleMediaService.kt
 @@ -28,7 +28,6 @@ import kotlinx.coroutines.runBlocking
@@ -122,6 +122,15 @@ index 64bed3e..43c6b6c 100644
  
  @UnstableApi
  internal class SimpleMediaService :
+@@ -59,7 +58,7 @@ internal class SimpleMediaService :
+                 PendingIntent.getActivity(
+                     context,
+                     0,
+-                    Intent(context, activity),
++                    Intent(context, activity).setAction("androidx.car.app.media.action.SHOW_MEDIA_PLAYBACK"),
+                     PendingIntent.FLAG_IMMUTABLE,
+                 ),
+             )
 @@ -147,8 +146,9 @@ internal class SimpleMediaService :
                      // Don't call this.player.release() - CrossfadeExoPlayerAdapter manages player lifecycle
                      this.release()

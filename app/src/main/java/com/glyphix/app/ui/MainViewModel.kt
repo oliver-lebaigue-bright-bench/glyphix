@@ -375,6 +375,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private val _hideNoveltyMode = MutableStateFlow(false)
+    val hideNoveltyMode = _hideNoveltyMode.asStateFlow()
+    fun setHideNoveltyMode(hidden: Boolean) {
+        _hideNoveltyMode.value = hidden
+        if (hidden) setPenisModeEnabled(false)
+        ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
+            .edit { putBoolean("hide_novelty_mode", hidden) }
+    }
+
     private val _penisModeEnabled = MutableStateFlow(false)
     val penisModeEnabled = _penisModeEnabled.asStateFlow()
     fun setPenisModeEnabled(enabled: Boolean) {
@@ -1438,7 +1447,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateLeaderboard() {
-        val uid = _userId.value ?: return
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        if (uid != _userId.value) return
         val updatedTime = _totalVisualizedTime.value
         if (updatedTime <= 0) return
 
@@ -1699,7 +1709,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiAmplitudeSyncEnabled.value = prefs.getBoolean("ui_amplitude_sync_enabled", true)
         _aodEnabled.value = prefs.getBoolean("aod_enabled", false)
         _bananaModeEnabled.value = prefs.getBoolean("banana_mode_enabled", false)
-        _penisModeEnabled.value = prefs.getBoolean("penis_mode_enabled", false)
+        _hideNoveltyMode.value = prefs.getBoolean("hide_novelty_mode", false)
+        _penisModeEnabled.value = !_hideNoveltyMode.value && prefs.getBoolean("penis_mode_enabled", false)
 
         _totalVisualizedTime.value = prefs.getLong("total_visualized_time", 0L)
         _totalIdleTime.value = prefs.getLong("total_idle_time", 0L)
@@ -1746,12 +1757,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (FirebaseAuth.getInstance().currentUser == null) {
                     auth.signInAnonymously().addOnFailureListener { e ->
                         Log.e("MainViewModel", "Firebase Auth failed", e)
-                        var uId = prefs.getString("user_id", null)
-                        if (uId == null) {
-                            uId = java.util.UUID.randomUUID().toString()
-                            prefs.edit().putString("user_id", uId).apply()
-                        }
-                        _userId.value = uId
+                        // Keep offline progress local until Firebase authenticates a real UID.
+                        // A fabricated UID cannot satisfy server-side ownership rules.
+                        _userId.value = null
                     }
                 }
             }

@@ -203,9 +203,7 @@ class MainActivity : ComponentActivity() {
                 getString(R.string.default_web_client_id)
             } catch (_: Exception) {
                 ""
-            }.ifEmpty {
-                "252304807982-ubtpig2ddtukmjfa7cp21lj1mjgnr968.apps.googleusercontent.com"
-            }
+            }.trim()
             if (webClientId.isEmpty()) {
                 Toast.makeText(this, "Web Client ID is missing!", Toast.LENGTH_LONG).show()
                 return

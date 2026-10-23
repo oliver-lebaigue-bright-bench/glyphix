@@ -27,6 +27,7 @@ import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.domain.mediaservice.handler.PlayerEvent
 import com.maxrave.media3.audio.GlyphixPcmBridge
 import com.maxrave.media3.di.startService
+import com.maxrave.media3.di.setServiceActivitySession
 import com.maxrave.simpmusic.App
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -68,6 +69,7 @@ class NativeMusicFeature : MusicFeature {
         }
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                setServiceActivitySession(activity, com.glyphix.app.ui.MainActivity::class.java, binder)
                 viewModel.isServiceRunning = true
             }
             override fun onServiceDisconnected(name: ComponentName?) {
@@ -118,7 +120,10 @@ class NativeMusicFeature : MusicFeature {
 
     override fun detach(activity: ComponentActivity) {
         if (owner !== activity) return
-        binding?.let { activity.unbindService(it) }
+        binding?.let {
+            try { activity.unbindService(it) }
+            catch (error: IllegalArgumentException) { Log.w("GlyphixMusic", "Music binding already released", error) }
+        }
         binding = null
         activityModule?.let { unloadKoinModules(it) }
         activityModule = null

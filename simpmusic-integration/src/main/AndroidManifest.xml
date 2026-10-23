@@ -140,7 +140,7 @@
     <provider android:name="com.glyphix.app.music.MusicFileProvider" android:authorities="${applicationId}.FileProvider" android:exported="false" android:grantUriPermissions="true">
       <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" />
     </provider>
-    <meta-data android:name="androidx.car.app.TintableAttributionIcon" android:resource="@drawable/monochrome" />
+    <meta-data android:name="androidx.car.app.TintableAttributionIcon" android:resource="@drawable/ic_notif_monochrome" />
     <service android:name="com.maxrave.media3.service.SimpleMediaService" android:exported="true" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" tools:ignore="ExportedService">
       <intent-filter>
         <action android:name="androidx.media3.session.MediaSessionService" />
@@ -169,6 +169,24 @@
         <category android:name="androidx.car.app.category.MEDIA" />
       </intent-filter>
     </service>
+    <receiver android:name="com.maxrave.simpmusic.ui.widget.TurntableWidgetReceiver" android:label="@string/widget_turntable_label" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/turntable_widget_info" />
+    </receiver>
+    <receiver android:name="com.maxrave.simpmusic.ui.widget.PlaylistsWidgetReceiver" android:label="@string/widget_playlists_label" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/playlists_widget_info" />
+    </receiver>
+    <receiver android:name="com.maxrave.simpmusic.ui.widget.ListeningInsightsWidgetReceiver" android:label="@string/widget_insights_label" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/insights_widget_info" />
+    </receiver>
   </application>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />

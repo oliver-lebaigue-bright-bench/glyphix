@@ -49,6 +49,10 @@ android {
         }
     }
 
+    // Community translations are incomplete in beta. Android falls back to English;
+    // keep every gap in the report while treating it as a warning, not a runtime failure.
+    lint { warning 'MissingTranslation' }
+
     buildFeatures {
         compose true
         buildConfig true

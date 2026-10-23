@@ -64,6 +64,10 @@ android {
         resources.excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*',
             'META-INF/ASL2.0', 'META-INF/CONTRIBUTORS.md', 'META-INF/versions/9/OSGI-INF/MANIFEST.MF']
     }
+    // Community translations are incomplete in beta. Android falls back to English;
+    // keep every gap in the report while treating it as a warning, not a runtime failure.
+    lint { warning 'MissingTranslation' }
+
     buildFeatures {
         compose true
         buildConfig true

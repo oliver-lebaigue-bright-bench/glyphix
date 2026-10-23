@@ -181,6 +181,7 @@ public final class FlashlightEngine {
         } catch (Throwable ignored) {
         }
 
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return 1;
         try {
             CameraCharacteristics.Key<Integer> key = new CameraCharacteristics.Key<>("android.flash.info.strengthMaximumLevel", Integer.class);
             Integer max = chars.get(key);

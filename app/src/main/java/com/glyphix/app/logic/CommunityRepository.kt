@@ -38,14 +38,14 @@ class CommunityRepository {
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("CommunityRepo", "onCancelled: ${error.message}")
-                close()
+                close(error.toException())
             }
         }
         try {
             database.addValueEventListener(listener)
         } catch (e: Exception) {
             Log.e("CommunityRepo", "Failed to add presets listener", e)
-            close()
+            close(e)
         }
         awaitClose { 
             Log.d("CommunityRepo", "Closing getPresets flow")
@@ -55,7 +55,7 @@ class CommunityRepository {
                 Log.e("CommunityRepo", "Error removing presets listener", e)
             }
         }
-    }
+    }.retryFirebaseReads()
 
     suspend fun uploadPreset(preset: CommunityPreset) {
         try {

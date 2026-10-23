@@ -5,6 +5,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -81,7 +83,7 @@ class NativeMusicFeature : MusicFeature {
                 is ToastType.SponsorBlockSkip -> "Skipped ${type.category}"
             })
         }
-        if (metadataJob == null) {
+        if (metadataJob?.isActive != true) {
             // Process lifetime collector: track changes still update presets with the screen off.
             val applicationContext = activity.applicationContext
             metadataJob = applicationScope.launch {
@@ -93,9 +95,16 @@ class NativeMusicFeature : MusicFeature {
                         AutoPresetEngine.getInstance().updateMediaMetadata(metadata.title, metadata.artist, metadata.albumTitle, null)
                     }
                     if (playing) {
-                        val artwork = metadata.artworkUri?.let { uri ->
-                            applicationContext.imageLoader.execute(ImageRequest.Builder(applicationContext)
-                                .data(uri).size(256).allowHardware(false).build()).image?.toBitmap()
+                        val artwork = try {
+                            metadata.artworkUri?.let { uri ->
+                                applicationContext.imageLoader.execute(ImageRequest.Builder(applicationContext)
+                                    .data(uri).size(256).allowHardware(false).build()).image?.toBitmap()
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            Log.w("GlyphixMusic", "Artwork unavailable; continuing metadata updates", error)
+                            null
                         }
                         MainViewModel.instance?.setMusicArtwork(artwork)
                     }

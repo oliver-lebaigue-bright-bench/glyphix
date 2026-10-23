@@ -44,7 +44,7 @@ class GlyphixMusicApplication : Application() {
         applicationScope.launch {
             AutoBackupScheduler(this@GlyphixMusicApplication, getKoin().get<DataStoreManager>()).observeAndSchedule()
         }
-        VersionManager.initialize()
+        VersionManager.initialize(BuildConfig.VERSION_NAME)
         MusicIntegration.install(NativeMusicFeature())
     }
 }

@@ -1,5 +1,8 @@
 package com.glyphix.app.model
 
+import androidx.annotation.Keep
+
+@Keep
 data class UserProfile(
     val userId: String = "",
     val displayName: String = "",

@@ -24,10 +24,12 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'
       - uses: actions/cache@v4
+        id: beta-key
         with:
           path: keystore/debug.keystore
           key: glyphix-beta-debug-signing-v1
       - name: Prepare stable beta signing key
+        id: signing
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
         run: bash tools/prepare-beta-signing.sh
@@ -39,3 +41,9 @@ jobs:
           name: glyphix-beta-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+      - name: Preserve beta key even when compilation fails
+        if: always() && steps.signing.outcome == 'success' && steps.beta-key.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: keystore/debug.keystore
+          key: glyphix-beta-debug-signing-v1

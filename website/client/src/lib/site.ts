@@ -2,7 +2,7 @@
 // These strings were previously duplicated across Home, Download and Support.
 
 export const REPO_OWNER = "oliver-lebaigue-bright-bench";
-export const REPO_NAME = "glyph-syncronator";
+export const REPO_NAME = "glyphix";
 
 export const REPOSITORY_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
 export const RELEASES_URL = `${REPOSITORY_URL}/releases`;
@@ -21,12 +21,12 @@ export const STUDIO_NAME = "BLOK. WebDev Studio";
 export const STUDIO_URL = "https://blok-web-studio.netlify.app/";
 
 // The dev channel is the working branch, not a tagged release.
-export const DEV_BRANCH = "dev";
+export const DEV_BRANCH = "integration/simpmusic";
 export const DEV_BRANCH_URL = `${REPOSITORY_URL}/tree/${DEV_BRANCH}`;
 export const DEV_ACTIONS_URL = `${REPOSITORY_URL}/actions`;
 export const DEV_BRANCH_ZIP = `${REPOSITORY_URL}/archive/refs/heads/${DEV_BRANCH}.zip`;
 
-export const MIN_ANDROID_VERSION = "Android 12";
+export const MIN_ANDROID_VERSION = "Android 8.0";
 
 export type GlyphDevice = {
   name: string;

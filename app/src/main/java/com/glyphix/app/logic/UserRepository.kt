@@ -21,7 +21,7 @@ class UserRepository {
             snapshot.getValue(UserProfile::class.java)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error fetching profile", e)
-            null
+            throw e
         }
     }
 
@@ -49,10 +49,19 @@ class UserRepository {
     suspend fun uploadProfilePicture(userId: String, imageUri: Uri, context: android.content.Context): String = withContext(Dispatchers.IO) {
         try {
             Log.d("UserRepository", "Encoding Uri $imageUri to Base64")
-            val inputStream = context.contentResolver.openInputStream(imageUri)
-                ?: throw Exception("Could not open input stream")
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-                ?: throw Exception("Could not decode stream")
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(imageUri).use { input ->
+                requireNotNull(input) { "Could not open image" }
+                BitmapFactory.decodeStream(input, null, bounds)
+            }
+            require(bounds.outWidth > 0 && bounds.outHeight > 0) { "Unsupported image" }
+            var sampleSize = 1
+            while (bounds.outWidth / sampleSize > 1024 || bounds.outHeight / sampleSize > 1024) sampleSize *= 2
+            val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val bitmap = context.contentResolver.openInputStream(imageUri).use { input ->
+                requireNotNull(input) { "Could not open image" }
+                BitmapFactory.decodeStream(input, null, options)
+            } ?: throw Exception("Could not decode image")
             encodeBitmapToBase64(bitmap)
         } catch (e: Exception) {
             Log.e("UserRepository", "Uri encoding failed", e)

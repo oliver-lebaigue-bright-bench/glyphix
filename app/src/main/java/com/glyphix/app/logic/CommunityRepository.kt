@@ -6,6 +6,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ServerValue
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -83,9 +84,7 @@ class CommunityRepository {
         try {
             Log.d("CommunityRepo", "Incrementing download count for: $presetId")
             val ref = database.child(presetId).child("downloads")
-            val snapshot = ref.get().await()
-            val current = snapshot.getValue(Int::class.java) ?: 0
-            ref.setValue(current + 1).await()
+            ref.setValue(ServerValue.increment(1)).await()
             Log.d("CommunityRepo", "Download count incremented for: $presetId")
         } catch (e: Exception) {
             Log.e("CommunityRepo", "Failed to increment download count for: $presetId", e)

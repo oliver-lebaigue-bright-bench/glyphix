@@ -3,6 +3,7 @@ package com.glyphix.app.service;
 import com.glyphix.app.R;
 import com.glyphix.app.util.PermissionTrampolineActivity;
 import android.app.PendingIntent;
+import android.os.Build;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -34,7 +35,11 @@ public class HapticsTileService extends TileService {
                             i,
                             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                     );
-                    startActivityAndCollapse(pendingIntent);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        startActivityAndCollapse(pendingIntent);
+                    } else {
+                        startActivityAndCollapse(i);
+                    }
                 });
             }
         } else {
@@ -63,12 +68,14 @@ public class HapticsTileService extends TileService {
         t.setState(hapticsEnabled ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
         
         t.setLabel("Glyphix Haptics");
-        if (!vizRunning) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          if (!vizRunning) {
             t.setSubtitle(hapticsEnabled ? "Enabled" : "Disabled");
         } else {
             t.setSubtitle(hapticsEnabled ? "Active" : "Ready");
         }
         
+        }
         // Use the vibration icon
         t.setIcon(Icon.createWithResource(this, R.drawable.ic_vibration));
         t.updateTile();

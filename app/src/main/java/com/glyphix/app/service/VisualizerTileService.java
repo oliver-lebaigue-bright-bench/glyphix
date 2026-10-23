@@ -3,6 +3,7 @@ package com.glyphix.app.service;
 import com.glyphix.app.R;
 import com.glyphix.app.util.PermissionTrampolineActivity;
 import android.app.PendingIntent;
+import android.os.Build;
 import android.content.Intent;
 import android.graphics.drawable.Icon;
 import android.service.quicksettings.Tile;
@@ -27,7 +28,11 @@ public class VisualizerTileService extends TileService {
                         i,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
-                startActivityAndCollapse(pendingIntent);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    startActivityAndCollapse(pendingIntent);
+                } else {
+                    startActivityAndCollapse(i);
+                }
             });
         }
     }
@@ -36,7 +41,7 @@ public class VisualizerTileService extends TileService {
         Tile t=getQsTile(); if(t==null) return;
         t.setState(on?Tile.STATE_ACTIVE:Tile.STATE_INACTIVE);
         t.setLabel("Glyphix");
-        t.setSubtitle(on?"Running":"Glyphix");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) t.setSubtitle(on?"Running":"Glyphix");
         t.setIcon(Icon.createWithResource(this, R.drawable.ic_launcher_monochrome));
         t.updateTile();
     }

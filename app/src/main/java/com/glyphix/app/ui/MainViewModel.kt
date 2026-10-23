@@ -75,6 +75,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         instance = this
     }
 
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
     val ctx = application
     val communityRepository = CommunityRepository()
     val announcementRepository = AnnouncementRepository()
@@ -1482,7 +1483,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveStatsLocally() {
         val prefs = ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
-            prefs.edit()
+        prefs.edit()
                 .putLong("total_visualized_time", _totalVisualizedTime.value)
                 .putLong("total_idle_time", _totalIdleTime.value)
                 .putLong("total_active_time", _totalActiveTime.value)
@@ -1720,7 +1721,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _spoofLocale.value = prefs.getString("spoof_locale", null)
 
         val auth = FirebaseAuth.getInstance()
-        auth.addAuthStateListener { firebaseAuth ->
+        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
             if (user != null) {
                 _userId.value = user.uid
@@ -1743,6 +1744,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 prefs.edit().remove("user_id").apply()
             }
         }
+
+        authStateListener = listener
+        auth.addAuthStateListener(listener)
 
         if (auth.currentUser == null) {
             // Defer authing-in anonymously until after we've had a chance to
@@ -2915,7 +2919,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        super.onCleared()
+        authStateListener?.let { FirebaseAuth.getInstance().removeAuthStateListener(it) }
+        authStateListener = null
         saveStatsLocally()
+        if (instance === this) instance = null
+        super.onCleared()
     }
 }

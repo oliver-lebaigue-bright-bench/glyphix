@@ -132,6 +132,35 @@ index 5d6b90c..bf7e5fa 100644
                                  LiquidGlassAppBottomNavigationBar(
                                      navController = navController,
                                      backdrop = backdrop,
+diff --git a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/screen/home/SettingScreen.kt b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/screen/home/SettingScreen.kt
+index 053a627..97ff4e7 100644
+--- a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/screen/home/SettingScreen.kt
++++ b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/screen/home/SettingScreen.kt
+@@ -1,5 +1,7 @@
+ package com.maxrave.simpmusic.ui.screen.home
+ 
++import com.maxrave.simpmusic.ui.theme.LocalHostTypography
++
+ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.Crossfade
+ import androidx.compose.animation.fadeIn
+@@ -2731,6 +2733,8 @@ fun SettingScreen(
+                         navController.navigate(CreditDestination)
+                     },
+                 )
++                // The host owns its update channel and signing identity.
++                if (LocalHostTypography.current == null) {
+                 SettingItem(
+                     title = stringResource(Res.string.auto_check_for_update),
+                     subtitle = stringResource(Res.string.auto_check_for_update_description),
+@@ -2778,6 +2782,7 @@ fun SettingScreen(
+                         sharedViewModel.checkForUpdate()
+                     },
+                 )
++                }
+                 SettingItem(
+                     title = stringResource(Res.string.author),
+                     subtitle = stringResource(Res.string.maxrave_dev),
 diff --git a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Theme.kt b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Theme.kt
 index 3cc8b92..a493cf7 100644
 --- a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/ui/theme/Theme.kt
@@ -214,3 +243,36 @@ index 309c221..792a06e 100644
      val fontFamily = fontFamily()
  
      // Titles were pure white, everything else muted gray (#A8A8A8) in the old dark-only palette.
+diff --git a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/utils/VersionManager.kt b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/utils/VersionManager.kt
+index b6c9c69..ebfdcb6 100644
+--- a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/utils/VersionManager.kt
++++ b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/utils/VersionManager.kt
+@@ -5,11 +5,11 @@ import com.maxrave.simpmusic.BuildKonfig
+ object VersionManager {
+     private var versionName: String? = null
+ 
+-    fun initialize() {
++    fun initialize(hostVersionName: String? = null) {
+         if (versionName == null) {
+             versionName =
+                 try {
+-                    BuildKonfig.versionName
++                    hostVersionName ?: BuildKonfig.versionName
+                 } catch (_: Exception) {
+                     String()
+                 }
+diff --git a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/viewModel/SharedViewModel.kt b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/viewModel/SharedViewModel.kt
+index 5d97cd9..e61c84f 100644
+--- a/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/viewModel/SharedViewModel.kt
++++ b/composeApp/src/commonMain/kotlin/com/maxrave/simpmusic/viewModel/SharedViewModel.kt
+@@ -1190,6 +1190,10 @@ class SharedViewModel(
+     val updateResponse: StateFlow<UpdateData?> = _updateResponse
+ 
+     fun checkForUpdate() {
++        if (appIdentity.applicationId == "com.glyphix.app") {
++            makeToast("App updates are managed in Glyphix settings.")
++            return
++        }
+         // Raised before the coroutine starts, so Home's launch banner, which reads it right after
+         // startup, can never miss a check that is already under way but not yet marked.
+         _isCheckingUpdate.value = true

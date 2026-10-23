@@ -33,6 +33,12 @@ jobs:
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
         run: bash tools/prepare-beta-signing.sh
+      - name: Upload public certificate registration details
+        uses: actions/upload-artifact@v4
+        with:
+          name: glyphix-beta-signing
+          path: build/beta-signing/*
+          if-no-files-found: error
       - uses: gradle/actions/setup-gradle@v4
       - name: Build phone APK
         run: bash gradlew :app:assembleDebug --build-cache

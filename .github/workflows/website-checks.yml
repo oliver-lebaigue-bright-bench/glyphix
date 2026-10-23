@@ -1,0 +1,30 @@
+name: Website checks
+on:
+  push:
+    branches: ['integration/simpmusic']
+    paths: ['website/**', '.github/workflows/website-checks.yml', '.github/workflows/deploy.yml']
+  pull_request:
+    paths: ['website/**', '.github/workflows/website-checks.yml', '.github/workflows/deploy.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Check and build static routes
+        working-directory: website
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glyphix-website-preview
+          path: website/dist/public
+          if-no-files-found: error

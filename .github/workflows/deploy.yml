@@ -23,6 +23,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Build and check website
+        working-directory: website
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check
+          npm run build
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -31,7 +42,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './website'
+          path: './website/dist/public'
 
       - name: Deploy to GitHub Pages
         id: deployment

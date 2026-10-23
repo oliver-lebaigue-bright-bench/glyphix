@@ -1482,7 +1482,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveStatsLocally() {
         val prefs = ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
-        viewModelScope.launch(Dispatchers.IO) {
             prefs.edit()
                 .putLong("total_visualized_time", _totalVisualizedTime.value)
                 .putLong("total_idle_time", _totalIdleTime.value)
@@ -1491,7 +1490,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .putLong("total_haptic_time", _totalHapticTime.value)
                 .putLong("total_flashlight_time", _totalFlashlightTime.value)
                 .apply()
-        }
     }
 
     private fun nicknameForLeaderboard(name: String): String {

@@ -78,3 +78,11 @@ Integration-specific source and upstream patches are provided under GPL-3.0-only
 - Google sign-in, Firebase rules/indexes, physical-device playback, and any issues described only in the inaccessible Discord channel remain subject to verification. This is not a claim that every repository bug has been eliminated.
 
 Android lint remains active and fails the build on runtime/API errors. Incomplete community translations are reported as warnings during beta, with Android's default English fallback preserved. The native launcher widget preview has a narrowly scoped AppCompat tint exception because RemoteViews must use framework ImageViews. Neither exception disables API or permission checks.
+
+## Build and website regression fixes
+
+The standard phone build uses a 4 GiB Gradle heap and two workers after a historical D8 merge failed with Java heap exhaustion. The phone-only task avoids assembling unrelated experimental apps. The native integration build remains separately pinned and beta-labelled.
+
+Each new beta workflow uploads `glyphix-beta-signing`, containing only public SHA-1/SHA-256 fingerprints, the package name, the checked-in OAuth certificate comparison, and administrator registration steps. A green build does not establish that Firebase accepts the signer. The approved team keystore must be supplied through `ANDROID_DEBUG_KEYSTORE_BASE64` for signing continuity beyond cache lifetime. Live sign-in and protected community/leaderboard operations require administrator verification.
+
+Website checks now compile the source before Pages uploads `website/dist/public`. Direct `/support`, `/download`, and `/studio` routes and a 404 document are generated during the build. The homepage component and full stylesheet were restored from repository history after incomplete replacements removed their surrounding code. Website repository links point to Glyphix. Status-page reachability is labelled separately from database and sign-in health.

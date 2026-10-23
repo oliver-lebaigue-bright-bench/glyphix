@@ -1,4 +1,4 @@
-<div align="center"> 
+<div align="center">
 
 <!-- Header Banner & Typing Intro -->
 <img src="https://capsule-render.vercel.app/api?type=waving&color=D5FC2D&height=180&section=header&text=GLYPHIX&fontSize=60&fontColor=1a1a1a&animation=fadeIn&fontAlignY=38" width="100%" alt="Glyphix Banner" />

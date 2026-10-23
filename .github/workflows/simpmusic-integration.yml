@@ -48,13 +48,28 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
-      - name: Compile integrated APK and run lint
-        run: bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug :glyphix:lintDebug --no-configuration-cache --build-cache
+      - name: Compile integrated beta APK
+        run: bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:assembleDebug --no-configuration-cache --build-cache
       - uses: actions/upload-artifact@v4
         with:
           name: glyphix-simpmusic-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+      - name: Lint integrated beta app
+        run: |
+          status=0
+          bash .simpmusic-build/gradlew -p .simpmusic-build :glyphix:lintDebug --no-configuration-cache --build-cache || status=$?
+          if [ "$status" -ne 0 ]; then
+            cat app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt || true
+          fi
+          exit "$status"
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: glyphix-beta-lint
+          path: app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
       - name: Preserve beta key even when compilation fails
         if: always() && steps.signing.outcome == 'success' && steps.beta-key.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4

@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - run: |
           mkdir -p /tmp/glyphix-smart-test
           java com.sun.tools.javac.Main -d /tmp/glyphix-smart-test app/src/main/java/com/glyphix/app/logic/smartcapture/SmartSourceRules.java tests/smart-source/SmartSourceRulesTest.java
@@ -28,10 +28,13 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: android-actions/setup-android@v3
         with:
+          cmdline-tools-version: '16111833'
           packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'
       - uses: gradle/actions/setup-gradle@v4
       - name: Compile Android integration
         run: bash gradlew :app:compileDebugKotlin :app:compileDebugJavaWithJavac --console=plain

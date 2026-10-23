@@ -75,6 +75,7 @@ internal fun SettingsScreen(
     val m3eEnabled by viewModel.m3eEnabled.collectAsStateWithLifecycle()
     val bananaMode by viewModel.bananaModeEnabled.collectAsStateWithLifecycle()
     val penisMode by viewModel.penisModeEnabled.collectAsStateWithLifecycle()
+    val hideNoveltyMode by viewModel.hideNoveltyMode.collectAsStateWithLifecycle()
     val spectrumGain by viewModel.spectrumGain.collectAsStateWithLifecycle()
     val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
     val spoofedDevice by viewModel.spoofedDevice.collectAsStateWithLifecycle()
@@ -499,6 +500,18 @@ internal fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text("Hide novelty mode", color = mockupTextColor())
+                    MockupPillToggle(
+                        checked = hideNoveltyMode,
+                        onCheckedChange = { viewModel.setHideNoveltyMode(it) }
+                    )
+                }
+                if (!hideNoveltyMode) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = "🍆 Penis Mode",
                         style = MaterialTheme.typography.bodyLarge.copy(
@@ -514,6 +527,8 @@ internal fun SettingsScreen(
                 }
 
                 Spacer(Modifier.height(14.dp))
+
+                }
 
                 val aodEnabled by viewModel.aodEnabled.collectAsStateWithLifecycle()
                 Row(

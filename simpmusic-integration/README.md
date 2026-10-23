@@ -1,6 +1,6 @@
 # Native SimpMusic integration
 
-Experimental integration branch for Glyphix. This is a source integration, not an embedded website, external app launcher, or second APK. **Android compilation and device acceptance are not yet verified. Do not publish this as a working release until the build and acceptance checks pass.**
+Experimental integration branch for Glyphix. This is a source integration, not an embedded website, external app launcher, or second APK. **The native beta APK assembles on GitHub Actions. Physical-device acceptance is not yet verified. Do not publish a stable release until the acceptance checks pass.**
 
 ## Implemented wiring
 
@@ -76,3 +76,5 @@ Integration-specific source and upstream patches are provided under GPL-3.0-only
 - Settings can hide the novelty mode and turn it off. The choice persists across restarts.
 - Operational check on 23 October 2026: `https://db.glyphix.site/api/health` returned 200, but a read-only lightshow lookup returned PocketBase JSON 403, `Only superusers can perform this action.` This points to collection API rules, rather than a Cloudflare challenge for that request. The repository contains no PocketBase server policy or Cloudflare configuration. A server maintainer must review the intended read/write policy; never ship a superuser token in the APK. No server access rules have been weakened in this branch.
 - Google sign-in, Firebase rules/indexes, physical-device playback, and any issues described only in the inaccessible Discord channel remain subject to verification. This is not a claim that every repository bug has been eliminated.
+
+Android lint remains active and fails the build on runtime/API errors. Incomplete community translations are reported as warnings during beta, with Android's default English fallback preserved. The native launcher widget preview has a narrowly scoped AppCompat tint exception because RemoteViews must use framework ImageViews. Neither exception disables API or permission checks.

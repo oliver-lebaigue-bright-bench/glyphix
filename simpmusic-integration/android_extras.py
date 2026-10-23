@@ -101,7 +101,12 @@ def prepare_android_extras(source: Path, host: Path):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(file, target)
             if file.suffix == '.xml':
-                for ref in pattern.findall(file.read_text()): resolve(*ref)
+                text = file.read_text()
+                if file.name == 'widget_preview_playlists.xml':
+                    # Launcher RemoteViews require framework ImageViews and android:tint.
+                    text = text.replace('<LinearLayout xmlns:android=', '<LinearLayout xmlns:tools="http://schemas.android.com/tools" tools:ignore="UseAppTint" xmlns:android=', 1)
+                    target.write_text(text)
+                for ref in pattern.findall(text): resolve(*ref)
     for key in sorted(refs): resolve(*key)
     target = resources / 'values/glyphix_music_widgets.xml'
     target.parent.mkdir(parents=True, exist_ok=True)

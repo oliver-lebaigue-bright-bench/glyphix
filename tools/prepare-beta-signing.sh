@@ -8,3 +8,5 @@ elif [[ ! -s keystore/debug.keystore ]]; then
 fi
 # Public fingerprints only. Register these for com.glyphix.app in Firebase/Google Cloud.
 keytool -list -v -keystore keystore/debug.keystore -storepass android -alias androiddebugkey | sed -n '/SHA1:/p; /SHA256:/p'
+
+python3 tools/beta-signing-report.py

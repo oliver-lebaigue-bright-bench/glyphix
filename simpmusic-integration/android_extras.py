@@ -31,6 +31,34 @@ def prepare_android_extras(source: Path, host: Path):
             text = text.replace('simpmusic_backup_', 'glyphix_music_backup_')
             text = text.replace('Download/SimpMusic', 'Download/Glyphix/Music')
             text = text.replace('Downloads/SimpMusic', 'Downloads/Glyphix/Music')
+            if original.name == 'AutoBackupWorker.kt':
+                # Downloads MediaStore APIs only exist on API 29+. Earlier supported
+                # phones use the app-owned external downloads directory without permissions.
+                text = text.replace(
+                    """        return try {
+            val contentValues""",
+                    """        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            val root = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: return false
+            val directory = File(root, "Music").apply { mkdirs() }
+            return try { backupFile.copyTo(File(directory, fileName), overwrite = false); true }
+            catch (error: Exception) { Logger.e(TAG, "Cannot save music backup: ${error.message}"); false }
+        }
+        return try {
+            val contentValues"""
+                )
+                text = text.replace(
+                    """    private fun cleanupOldBackups(maxFiles: Int) {
+        try {""",
+                    """    private fun cleanupOldBackups(maxFiles: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            val root = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: return
+            File(root, "Music").listFiles { file -> file.name.startsWith("glyphix_music_backup_") && file.extension == "zip" }
+                ?.sortedByDescending { it.lastModified() }?.drop(maxFiles.coerceAtLeast(1))?.forEach { it.delete() }
+            return
+        }
+        try {"""
+                )
+                text = text.replace('context.contentResolver.openOutputStream(outputUri)?.use', 'requireNotNull(context.contentResolver.openOutputStream(outputUri)).use')
             (java / original.name).write_text('// Adapted from pinned SimpMusic Android source; see upstream.lock.json and GPL notices.\n' + text)
             refs.update(re.findall(r'(?<![\w.])R\.([a-z_]+)\.([A-Za-z0-9_]+)', text))
 

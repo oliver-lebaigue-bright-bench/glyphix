@@ -15,6 +15,7 @@ def prepare_android_extras(source: Path, host: Path):
     java.mkdir(parents=True)
     resources.mkdir(parents=True)
     refs = {('xml', name) for name in ('turntable_widget_info', 'playlists_widget_info', 'insights_widget_info')}
+    refs.update({('string', 'widget_' + name + '_label') for name in ('turntable', 'playlists', 'insights')})
     for folder in ('ui/widget', 'service/backup'):
         for original in (upstream / 'java/com/maxrave/simpmusic' / folder).glob('*.kt'):
             text = original.read_text()

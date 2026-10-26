@@ -3,6 +3,8 @@ package com.glyphix.app.service;
 import com.glyphix.app.R;
 import com.glyphix.app.util.PermissionTrampolineActivity;
 import android.app.PendingIntent;
+import android.annotation.SuppressLint;
+import android.os.Build;
 import android.content.Intent;
 import android.graphics.drawable.Icon;
 import android.service.quicksettings.Tile;
@@ -27,16 +29,27 @@ public class VisualizerTileService extends TileService {
                         i,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                 );
-                startActivityAndCollapse(pendingIntent);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    startActivityAndCollapse(pendingIntent);
+                } else {
+                    startLegacyActivityAndCollapse(i);
+                }
             });
         }
     }
+    // The PendingIntent overload was added in API 34. Older supported phones
+    // must use the Intent overload, and every caller is guarded by SDK_INT < 34.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
+    private void startLegacyActivityAndCollapse(Intent intent) {
+        startActivityAndCollapse(intent);
+    }
+
     private void refresh() { refresh(AudioCaptureService.isRunning()); }
     private void refresh(boolean on) {
         Tile t=getQsTile(); if(t==null) return;
         t.setState(on?Tile.STATE_ACTIVE:Tile.STATE_INACTIVE);
         t.setLabel("Glyphix");
-        t.setSubtitle(on?"Running":"Glyphix");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) t.setSubtitle(on?"Running":"Glyphix");
         t.setIcon(Icon.createWithResource(this, R.drawable.ic_launcher_monochrome));
         t.updateTile();
     }

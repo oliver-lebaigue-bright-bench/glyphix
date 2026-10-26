@@ -2,7 +2,7 @@ import { LockKeyhole, WandSparkles } from "lucide-react";
 import TopDock from "@/components/TopDock";
 import SiteFooter from "@/components/SiteFooter";
 
-const REPOSITORY_URL = "https://github.com/oliver-lebaigue-bright-bench/glyph-syncronator";
+import { REPOSITORY_URL } from "@/lib/site";
 
 export default function Studio() {
   return <div className="product-page studio-page">

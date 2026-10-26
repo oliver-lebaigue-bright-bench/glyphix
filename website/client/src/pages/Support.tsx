@@ -51,7 +51,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: "Is Glyphix open source?",
         answer:
-          "Yes. The full Android source is on GitHub. You are welcome to read it, open issues, or send pull requests. Commercial redistribution needs permission, which is set out in the LICENSE file.",
+          "The source and licence notices are on GitHub. See the repository licence and native music integration notices for the terms that apply to a build.",
       },
     ],
   },
@@ -168,14 +168,14 @@ function StatusBanner() {
   const service = useServiceStatus(STATUS_URL);
 
   const label =
-    service.state === "checking" ? "Checking" : service.state === "operational" ? "Responding" : "Not responding";
+    service.state === "checking" ? "Checking" : service.state === "reachable" ? "Status page reachable" : "Status page unreachable";
 
   return (
     <a className={`status-banner is-${service.state}`} href={STATUS_URL}>
       <Activity size={18} aria-hidden="true" />
       <p>
-        <strong>Having a problem?</strong> Check the status page before you file a bug — it may already be a known
-        outage.
+        <strong>Having a problem?</strong> Open the status page for service reports. A reachable status page does not
+        confirm that the database or sign-in is healthy.
       </p>
       <span className="status-pill">
         <i aria-hidden="true" />

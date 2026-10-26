@@ -1,6 +1,6 @@
 package com.glyphix.app.model;
 
-import com.nothing.ketchum.Common;
+import java.util.Locale;
 
 /**
  * Device detection and display helpers used by the visualizer runtime.
@@ -17,6 +17,8 @@ public final class DeviceProfile {
     public static final int DEVICE_NP4APRO = 6;
     public static final int DEVICE_NP3 = 7;
     public static final int DEVICE_NP4B = 8;
+    // Preserve existing stored IDs. The 3a Pro is a strip device, not ID 6 (4a Pro matrix).
+    public static final int DEVICE_NP3APRO = 9;
 
     private DeviceProfile() {
     }
@@ -25,26 +27,25 @@ public final class DeviceProfile {
         if (android.os.Build.VERSION.SDK_INT < 31) {
             return DEVICE_UNKNOWN;
         }
-        String model = android.os.Build.MODEL != null ? android.os.Build.MODEL.toUpperCase(java.util.Locale.US) : "";
-        if (Common.is20111() || model.contains("A063") || model.contains("20111") || model.contains("PHONE 1") || model.contains("PHONE (1)")) {
-            return DEVICE_NP1;
-        } else if (Common.is22111() || model.contains("A065") || model.contains("AIN065") || model.contains("22111") || model.contains("PHONE 2") || model.contains("PHONE (2)")) {
-            return DEVICE_NP2;
-        } else if (Common.is23111() || Common.is23113() || model.contains("A142") || model.contains("23111") || model.contains("23113") || model.contains("PHONE 2A") || model.contains("PHONE (2A)")) {
-            return DEVICE_NP2A;
-        } else if (Common.is25111p() || model.contains("A059P") || model.contains("A069P") || model.contains("24111P") || model.contains("25111P") || model.contains("3A PRO") || model.contains("3A_PRO") || model.contains("3A PLUS") || model.contains("3A+") || model.contains("4A PRO") || model.contains("4A_PRO")) {
-            return DEVICE_NP4APRO;
-        } else if (Common.is24111() || model.contains("A059") || model.contains("24111") || model.contains("PHONE 3A") || model.contains("PHONE (3A)")) {
-            return DEVICE_NP3A;
-        } else if (Common.is25111() || model.contains("A069") || model.contains("25111") || model.contains("PHONE 4A") || model.contains("PHONE (4A)")) {
-            return DEVICE_NP4A;
-        } else if (Common.is23112() || model.contains("A024") || model.contains("23112") || model.contains("PHONE 3") || model.contains("PHONE (3)")) {
-            return DEVICE_NP3;
-        } else if (model.contains("26111") || model.contains("PHONE 4B") || model.contains("PHONE (4B)")) {
-            return DEVICE_NP4B;
-        } else {
-            return DEVICE_UNKNOWN;
-        }
+        return detectModel(android.os.Build.MODEL);
+    }
+
+    /** Exact model aliases prevent a Pro suffix or unrelated model matching another phone. */
+    public static int detectModel(String model) {
+        String key = model == null ? "" : model.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        if (key.startsWith("NOTHING")) key = key.substring("NOTHING".length());
+        return switch (key) {
+            case "A063", "20111", "PHONE1" -> DEVICE_NP1;
+            case "A065", "AIN065", "22111", "PHONE2" -> DEVICE_NP2;
+            case "A142", "A142P", "23111", "23113", "PHONE2A", "PHONE2APLUS" -> DEVICE_NP2A;
+            case "A059P", "24111P", "PHONE3APRO", "PHONE3APLUS" -> DEVICE_NP3APRO;
+            case "A059", "24111", "PHONE3A" -> DEVICE_NP3A;
+            case "A069P", "25111P", "PHONE4APRO" -> DEVICE_NP4APRO;
+            case "A069", "25111", "PHONE4A" -> DEVICE_NP4A;
+            case "A024", "23112", "PHONE3" -> DEVICE_NP3;
+            case "25131", "26111", "PHONE4B" -> DEVICE_NP4B;
+            default -> DEVICE_UNKNOWN;
+        };
     }
 
     public static String deviceName(int device) {
@@ -53,7 +54,8 @@ public final class DeviceProfile {
             case DEVICE_NP2 -> "Phone (2)";
             case DEVICE_NP2A -> "Phone (2a) / 2a+";
             case DEVICE_NP3A -> "Phone (3a)";
-            case DEVICE_NP4APRO -> "Phone (3a) Pro";
+            case DEVICE_NP3APRO -> "Phone (3a) Pro";
+            case DEVICE_NP4APRO -> "Phone (4a) Pro";
             case DEVICE_NP4A -> "Phone (4a)";
             case DEVICE_NP3 -> "Phone (3)";
             case DEVICE_NP4B -> "Phone (4b)";
@@ -66,7 +68,7 @@ public final class DeviceProfile {
             case DEVICE_NP1 -> 15;
             case DEVICE_NP2 -> 33;
             case DEVICE_NP2A -> 26;
-            case DEVICE_NP3A -> 36;
+            case DEVICE_NP3A, DEVICE_NP3APRO -> 36;
             case DEVICE_NP4A -> 7;
             case DEVICE_NP4APRO -> 169;
             case DEVICE_NP3 -> 625;

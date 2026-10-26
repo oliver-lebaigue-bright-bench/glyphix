@@ -8,14 +8,15 @@ plugins {
 
 android {
     namespace 'com.glyphix.app'
-    compileSdk 34
+    compileSdk 37
+    compileSdkMinor 0
 
     defaultConfig {
         applicationId "com.glyphix.app"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.0-beta.3'
     }
 
     signingConfigs {
@@ -47,6 +48,10 @@ android {
             versionNameSuffix '.debug'
         }
     }
+
+    // Community translations are incomplete in beta. Android falls back to English;
+    // keep every gap in the report while treating it as a warning, not a runtime failure.
+    lint { warning 'MissingTranslation' }
 
     buildFeatures {
         compose true

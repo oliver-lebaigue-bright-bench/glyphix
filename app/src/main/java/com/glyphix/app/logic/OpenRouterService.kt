@@ -426,7 +426,7 @@ Provide zones covering the segments from index 0 to ${ledCount - 1}.
 - 25: Small bottom dot LED
             """.trimIndent()
 
-            DeviceProfile.DEVICE_NP3A -> """
+            DeviceProfile.DEVICE_NP3A, DeviceProfile.DEVICE_NP3APRO -> """
 - 0..19: Large upper circular arc (20 segments)
 - 20..30: Medium lower circular arc (11 segments)
 - 31..35: Small bottom straight bar (5 segments)

@@ -28,17 +28,17 @@ class GlobalStatsRepository {
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("GlobalStatsRepo", "onCancelled: ${error.message}")
-                close()
+                close(error.toException())
             }
         }
         try {
             database.addValueEventListener(listener)
         } catch (e: Exception) {
             Log.e("GlobalStatsRepo", "Failed to add listener", e)
-            close()
+            close(e)
         }
         awaitClose { database.removeEventListener(listener) }
-    }
+    }.retryFirebaseReads()
 
     suspend fun incrementStats(
         timeMs: Long = 0,

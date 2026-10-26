@@ -29,14 +29,14 @@ class AnnouncementRepository {
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("AnnouncementRepo", "onCancelled: ${error.message}")
-                close()
+                close(error.toException())
             }
         }
         try {
             database.addValueEventListener(listener)
         } catch (e: Exception) {
             Log.e("AnnouncementRepo", "Failed to add listener", e)
-            close()
+            close(e)
         }
         awaitClose { 
             try {
@@ -45,7 +45,7 @@ class AnnouncementRepository {
                 Log.e("AnnouncementRepo", "Error removing listener", e)
             }
         }
-    }
+    }.retryFirebaseReads()
 
     fun getAnnouncementHistory(): Flow<List<Announcement>> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -68,14 +68,14 @@ class AnnouncementRepository {
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("AnnouncementRepo", "History onCancelled: ${error.message}")
-                close()
+                close(error.toException())
             }
         }
         try {
             database.addValueEventListener(listener)
         } catch (e: Exception) {
             Log.e("AnnouncementRepo", "Failed to add history listener", e)
-            close()
+            close(e)
         }
         awaitClose { 
             try {
@@ -84,14 +84,15 @@ class AnnouncementRepository {
                 Log.e("AnnouncementRepo", "Error removing history listener", e)
             }
         }
-    }
+    }.retryFirebaseReads()
 
     suspend fun postAnnouncement(announcement: Announcement) {
         try {
             Log.d("AnnouncementRepo", "Posting announcement: ${announcement.id}")
-            database.child("latest").setValue(announcement).await()
-            // Also store in history
-            database.child("history").child(announcement.id.toString()).setValue(announcement).await()
+            database.updateChildren(mapOf(
+                "latest" to announcement,
+                "history/${announcement.id}" to announcement
+            )).await()
             Log.d("AnnouncementRepo", "Announcement posted successfully")
         } catch (e: Exception) {
             Log.e("AnnouncementRepo", "Post announcement failed for ID: ${announcement.id}", e)

@@ -75,6 +75,7 @@ internal fun SettingsScreen(
     val m3eEnabled by viewModel.m3eEnabled.collectAsStateWithLifecycle()
     val bananaMode by viewModel.bananaModeEnabled.collectAsStateWithLifecycle()
     val penisMode by viewModel.penisModeEnabled.collectAsStateWithLifecycle()
+    val hideNoveltyMode by viewModel.hideNoveltyMode.collectAsStateWithLifecycle()
     val spectrumGain by viewModel.spectrumGain.collectAsStateWithLifecycle()
     val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
     val spoofedDevice by viewModel.spoofedDevice.collectAsStateWithLifecycle()
@@ -499,6 +500,18 @@ internal fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text("Hide novelty mode", color = mockupTextColor())
+                    MockupPillToggle(
+                        checked = hideNoveltyMode,
+                        onCheckedChange = { viewModel.setHideNoveltyMode(it) }
+                    )
+                }
+                if (!hideNoveltyMode) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = "🍆 Penis Mode",
                         style = MaterialTheme.typography.bodyLarge.copy(
@@ -514,6 +527,8 @@ internal fun SettingsScreen(
                 }
 
                 Spacer(Modifier.height(14.dp))
+
+                }
 
                 val aodEnabled by viewModel.aodEnabled.collectAsStateWithLifecycle()
                 Row(
@@ -677,7 +692,8 @@ internal fun SettingsScreen(
                         "Phone (2a)" to DeviceProfile.DEVICE_NP2A,
                         "Phone (3)" to DeviceProfile.DEVICE_NP3,
                         "Phone (3a)" to DeviceProfile.DEVICE_NP3A,
-                        "Phone (3a Pro)" to DeviceProfile.DEVICE_NP4APRO,
+                        "Phone (3a) Pro" to DeviceProfile.DEVICE_NP3APRO,
+                        "Phone (4a) Pro" to DeviceProfile.DEVICE_NP4APRO,
                         "Phone (4a)" to DeviceProfile.DEVICE_NP4A,
                         "Phone (4b)" to DeviceProfile.DEVICE_NP4B
                     )

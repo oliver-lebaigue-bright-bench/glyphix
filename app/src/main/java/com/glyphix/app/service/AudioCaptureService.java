@@ -250,14 +250,18 @@ public class AudioCaptureService extends Service {
             case DeviceProfile.DEVICE_NP1 -> Glyph.DEVICE_20111;
             case DeviceProfile.DEVICE_NP2 -> Glyph.DEVICE_22111;
             case DeviceProfile.DEVICE_NP2A -> Glyph.DEVICE_23111;
-            case DeviceProfile.DEVICE_NP3A -> Glyph.DEVICE_24111;
+            case DeviceProfile.DEVICE_NP3A, DeviceProfile.DEVICE_NP3APRO -> Glyph.DEVICE_24111;
             case DeviceProfile.DEVICE_NP4A -> Glyph.DEVICE_25111;
             case DeviceProfile.DEVICE_NP4APRO -> Glyph.DEVICE_25111p;
             case DeviceProfile.DEVICE_NP3 -> Glyph.DEVICE_23112;
             case DeviceProfile.DEVICE_NP4B -> "26111";
             default -> Glyph.DEVICE_25111;
         };
-        mGM.register(deviceStr);
+        try {
+            mGM.register(deviceStr);
+        } catch (RuntimeException error) {
+            Log.e(TAG, "Glyph registration unavailable on this device", error);
+        }
     }
 
     private void registerGlyphMatrixManager() {
@@ -565,7 +569,7 @@ public class AudioCaptureService extends Service {
         mAudioProcessor = new AudioProcessor();
         mAudioDeviceManager = new AudioDeviceManager(this, this::refreshLatencyForCurrentAudioRoute);
         mSelectedDevice = DeviceProfile.detectDevice();
-        if (mSelectedDevice == DeviceProfile.DEVICE_UNKNOWN) mSelectedDevice = DeviceProfile.DEVICE_NP2;
+        // Unknown hardware remains unknown; haptics and flashlight still work.
         mLatencyCompensationMs = loadLatencyCompensationMs(this, mSelectedDevice);
         mGamma = loadGamma(this);
         SharedPreferences appPrefs = getSharedPreferences(APP_PREFS_NAME, MODE_PRIVATE);
@@ -578,7 +582,7 @@ public class AudioCaptureService extends Service {
         mOverlayYOffset = appPrefs.getInt("overlay_y_offset", 2);
         mOverlaySensitivity = appPrefs.getFloat("overlay_sensitivity", 1.0f);
 
-        AudioProcessor.ReadMethod readMethod = AudioProcessor.ReadMethod.valueOf(appPrefs.getString("fft_read_method", AudioProcessor.ReadMethod.MAX.name()));
+        AudioProcessor.ReadMethod readMethod = com.glyphix.app.util.PreferenceValues.enumOrDefault(AudioProcessor.ReadMethod.class, appPrefs.getString("fft_read_method", null), AudioProcessor.ReadMethod.MAX);
         mAudioProcessor.setReadMethod(readMethod);
 
         mGlyphRenderer = new GlyphRenderer(mGamma, mIdleBreathingEnabled, mSelectedDevice);
@@ -728,13 +732,13 @@ public class AudioCaptureService extends Service {
     }
 
     private void ensureGlyphManagerInitialized() {
-        if (mGM == null && Build.VERSION.SDK_INT >= 31) {
+        if (mGM == null && mSelectedDevice != DeviceProfile.DEVICE_UNKNOWN && Build.VERSION.SDK_INT >= 34) {
             try {
                 mGM = GlyphManager.getInstance(getApplicationContext());
                 if (mGM != null) mGM.init(mGlyphCallback);
             } catch (Exception e) { Log.e(TAG, "Failed to initialize GlyphManager", e); }
         }
-        if (mGMM == null && Build.VERSION.SDK_INT >= 31) {
+        if (mGMM == null && DeviceProfile.getMatrixWidth(mSelectedDevice) > 0 && Build.VERSION.SDK_INT >= 34) {
             try {
                 mGMM = GlyphMatrixManager.getInstance(getApplicationContext());
                 if (mGMM != null) mGMM.init(mGlyphMatrixCallback);
@@ -1986,7 +1990,7 @@ public class AudioCaptureService extends Service {
         for (String p : prefs) if (presetKeys.contains(p)) return p; return presetKeys.get(0);
     }
 
-    private static String phoneModelForDevice(int device) { return switch (device) { case DeviceProfile.DEVICE_NP1 -> "PHONE1"; case DeviceProfile.DEVICE_NP2 -> "PHONE2"; case DeviceProfile.DEVICE_NP2A -> "PHONE2A"; case DeviceProfile.DEVICE_NP3A -> "PHONE3A"; case DeviceProfile.DEVICE_NP4A -> "PHONE4A"; case DeviceProfile.DEVICE_NP4APRO -> "PHONE4A_PRO"; case DeviceProfile.DEVICE_NP3 -> "PHONE3"; case DeviceProfile.DEVICE_NP4B -> "PHONE4B"; default -> "UNKNOWN"; }; }
+    private static String phoneModelForDevice(int device) { return switch (device) { case DeviceProfile.DEVICE_NP1 -> "PHONE1"; case DeviceProfile.DEVICE_NP2 -> "PHONE2"; case DeviceProfile.DEVICE_NP2A -> "PHONE2A"; case DeviceProfile.DEVICE_NP3A, DeviceProfile.DEVICE_NP3APRO -> "PHONE3A"; case DeviceProfile.DEVICE_NP4A -> "PHONE4A"; case DeviceProfile.DEVICE_NP4APRO -> "PHONE4A_PRO"; case DeviceProfile.DEVICE_NP3 -> "PHONE3"; case DeviceProfile.DEVICE_NP4B -> "PHONE4B"; default -> "UNKNOWN"; }; }
 
     public static String loadZonesConfigVersion(Context context) { try { return loadZonesConfigRoot(context).optString("version", "Unknown"); } catch (Exception e) { return "Unknown"; } }
     private static JSONObject loadZonesConfigRoot(Context context) throws IOException, JSONException { return new JSONObject(loadZonesConfigText(context)); }

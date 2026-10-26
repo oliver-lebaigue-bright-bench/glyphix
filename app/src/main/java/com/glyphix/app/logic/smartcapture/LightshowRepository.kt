@@ -10,6 +10,12 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import okhttp3.Call
+import okhttp3.Callback
+import java.io.IOException
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resumeWithException
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.net.URLEncoder
@@ -26,6 +32,20 @@ class LightshowRepository(private val cacheDir: File? = null) {
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+
+    // Cancelling a source/song lookup must also cancel its socket operation.
+    private suspend fun execute(request: Request): Response = suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, error: IOException) {
+                if (continuation.isActive) continuation.resumeWithException(error)
+            }
+            override fun onResponse(call: Call, response: Response) {
+                continuation.resume(response) { _, resource, _ -> resource.close() }
+            }
+        })
+    }
 
     private fun sanitizeKey(songKey: String): String {
         return songKey.takeIf { it.matches(Regex("v2_[a-f0-9]{64}")) } ?: ""
@@ -53,13 +73,15 @@ class LightshowRepository(private val cacheDir: File? = null) {
                 .get()
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            execute(request).use { response ->
                 if (!response.isSuccessful) {
                     Log.d("LightshowRepo", "PocketBase returned HTTP ${response.code} for $safeKey")
                     return@withContext null
                 }
                 
+                if (response.header("cf-mitigated") == "challenge") return@withContext null
                 val body = response.body ?: return@withContext null
+                if (body.contentType()?.subtype?.contains("json") != true) return@withContext null
                 if (body.contentLength() > 8_000_000) return@withContext null
                 val bytes = SmartSourceRules.readBounded(body.byteStream(), 8_000_000)
                 if (bytes.size > 8_000_000) return@withContext null
@@ -125,7 +147,7 @@ class LightshowRepository(private val cacheDir: File? = null) {
         val safeKey = sanitizeKey(sequence.songKey)
         if (safeKey.isEmpty() || !sequence.isValid()) return@withContext
         try {
-            val existing = LightshowRepository().fetchLightshow(safeKey)
+            val existing = fetchLightshow(safeKey)
             if (existing != null && existing.frames.isNotEmpty()) {
                 Log.d("LightshowRepo", "Record $safeKey already exists on PocketBase, skipping upload")
                 return@withContext
@@ -151,12 +173,11 @@ class LightshowRepository(private val cacheDir: File? = null) {
                 .post(requestBody)
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            execute(request).use { response ->
                 if (response.isSuccessful) {
                     Log.d("LightshowRepo", "PocketBase upload successful for $safeKey (HTTP ${response.code})")
                 } else {
-                    val errBody = response.body?.string()
-                    Log.e("LightshowRepo", "PocketBase upload failed for $safeKey (HTTP ${response.code}): $errBody")
+                    Log.w("LightshowRepo", "PocketBase upload failed (HTTP ${response.code})")
                 }
             }
         } catch (e: CancellationException) {

@@ -405,6 +405,7 @@ public class GlyphRenderer {
                 applySegmentGradient(stateBuffer, 0, 23, progress);
                 break;
             case DeviceProfile.DEVICE_NP3A:
+            case DeviceProfile.DEVICE_NP3APRO:
                 // Top Large Addressable Bar (0..19)
                 applySegmentGradient(stateBuffer, 0, 19, progress);
                 // Medium Addressable Strip (20..30)

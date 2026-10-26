@@ -7,6 +7,14 @@ import android.util.Base64
 import android.util.Log
 import com.glyphix.app.model.UserProfile
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.MutableData
+import com.google.firebase.database.Transaction
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -21,13 +29,34 @@ class UserRepository {
             snapshot.getValue(UserProfile::class.java)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error fetching profile", e)
-            null
+            throw e
         }
     }
 
     suspend fun saveUserProfile(profile: UserProfile) {
         try {
-            database.child(profile.userId).setValue(profile).await()
+            require(profile.userId == FirebaseAuth.getInstance().currentUser?.uid) {
+                "Profile updates require the authenticated user"
+            }
+            suspendCancellableCoroutine<Unit> { continuation ->
+                database.child(profile.userId).runTransaction(object : Transaction.Handler {
+                    override fun doTransaction(data: MutableData): Transaction.Result {
+                        val previousTime = (data.child("totalVisualizedTime").value as? Number)?.toLong() ?: 0L
+                        val createdAt = (data.child("createdAt").value as? Number)?.toLong() ?: profile.createdAt
+                        data.value = profile.copy(
+                            totalVisualizedTime = maxOf(previousTime, profile.totalVisualizedTime),
+                            createdAt = createdAt
+                        )
+                        return Transaction.success(data)
+                    }
+                    override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                        if (!continuation.isActive) return
+                        if (error != null) continuation.resumeWithException(error.toException())
+                        else if (!committed) continuation.resumeWithException(IllegalStateException("Profile update aborted"))
+                        else continuation.resume(Unit)
+                    }
+                })
+            }
         } catch (e: Exception) {
             Log.e("UserRepository", "Error saving profile", e)
             throw e
@@ -49,10 +78,19 @@ class UserRepository {
     suspend fun uploadProfilePicture(userId: String, imageUri: Uri, context: android.content.Context): String = withContext(Dispatchers.IO) {
         try {
             Log.d("UserRepository", "Encoding Uri $imageUri to Base64")
-            val inputStream = context.contentResolver.openInputStream(imageUri)
-                ?: throw Exception("Could not open input stream")
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-                ?: throw Exception("Could not decode stream")
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(imageUri).use { input ->
+                requireNotNull(input) { "Could not open image" }
+                BitmapFactory.decodeStream(input, null, bounds)
+            }
+            require(bounds.outWidth > 0 && bounds.outHeight > 0) { "Unsupported image" }
+            var sampleSize = 1
+            while (bounds.outWidth / sampleSize > 1024 || bounds.outHeight / sampleSize > 1024) sampleSize *= 2
+            val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val bitmap = context.contentResolver.openInputStream(imageUri).use { input ->
+                requireNotNull(input) { "Could not open image" }
+                BitmapFactory.decodeStream(input, null, options)
+            } ?: throw Exception("Could not decode image")
             encodeBitmapToBase64(bitmap)
         } catch (e: Exception) {
             Log.e("UserRepository", "Uri encoding failed", e)

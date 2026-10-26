@@ -3,6 +3,8 @@ package com.glyphix.app.service;
 import com.glyphix.app.R;
 import com.glyphix.app.util.PermissionTrampolineActivity;
 import android.app.PendingIntent;
+import android.annotation.SuppressLint;
+import android.os.Build;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -34,7 +36,11 @@ public class HapticsTileService extends TileService {
                             i,
                             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
                     );
-                    startActivityAndCollapse(pendingIntent);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        startActivityAndCollapse(pendingIntent);
+                    } else {
+                        startLegacyActivityAndCollapse(i);
+                    }
                 });
             }
         } else {
@@ -46,6 +52,13 @@ public class HapticsTileService extends TileService {
         }
     }
     
+    // The PendingIntent overload was added in API 34. Older supported phones
+    // must use the Intent overload, and every caller is guarded by SDK_INT < 34.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
+    private void startLegacyActivityAndCollapse(Intent intent) {
+        startActivityAndCollapse(intent);
+    }
+
     public static void requestRefresh(Context context) {
         TileService.requestListeningState(context, new ComponentName(context, HapticsTileService.class));
     }
@@ -63,12 +76,11 @@ public class HapticsTileService extends TileService {
         t.setState(hapticsEnabled ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
         
         t.setLabel("Glyphix Haptics");
-        if (!vizRunning) {
-            t.setSubtitle(hapticsEnabled ? "Enabled" : "Disabled");
-        } else {
-            t.setSubtitle(hapticsEnabled ? "Active" : "Ready");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            t.setSubtitle(!vizRunning
+                    ? (hapticsEnabled ? "Enabled" : "Disabled")
+                    : (hapticsEnabled ? "Active" : "Ready"));
         }
-        
         // Use the vibration icon
         t.setIcon(Icon.createWithResource(this, R.drawable.ic_vibration));
         t.updateTile();

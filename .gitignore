@@ -1,20 +1,17 @@
+# Local configuration and caches
 local.properties
-build/
 .gradle/
 .idea/
-.codex
 .vscode/
-.artifacts
-app/build/*
-
-app/build/
-app/build/outputs/*
-app/build/outputs/
-app/build/outputs/apk/
+.codex
+.artifacts/
+.DS_Store
+**/build/
 __pycache__/
-*.pyc
-*.pyo
-keystore*
+*.py[cod]
+
+# Signing material stays local or in CI secrets/cache.
+keystore*/
 *.jks
 *.keystore
 app/release/

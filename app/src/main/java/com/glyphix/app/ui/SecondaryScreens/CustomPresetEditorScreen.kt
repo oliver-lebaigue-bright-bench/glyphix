@@ -1201,7 +1201,7 @@ private fun drawEditorGlyphs(scope: DrawScope, device: Int, selectedIndices: Lis
                 paths["p2a_small"]?.let { drawPath(it, getColor(25), alpha = getAlpha(25)) }
             }
         }
-        DeviceProfile.DEVICE_NP3A -> {
+        DeviceProfile.DEVICE_NP3A, DeviceProfile.DEVICE_NP3APRO -> {
             scope.withTransform({
                 translate(-1.65f, 25f)
             }) {

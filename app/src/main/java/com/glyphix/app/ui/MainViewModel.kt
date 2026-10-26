@@ -70,10 +70,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             private set
     }
 
-    init {
-        instance = this
-    }
 
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
     val ctx = application
     val communityRepository = CommunityRepository()
     val announcementRepository = AnnouncementRepository()
@@ -372,6 +370,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
                 .edit { putBoolean("banana_mode_enabled", enabled) }
         }
+    }
+
+    private val _hideNoveltyMode = MutableStateFlow(false)
+    val hideNoveltyMode = _hideNoveltyMode.asStateFlow()
+    fun setHideNoveltyMode(hidden: Boolean) {
+        _hideNoveltyMode.value = hidden
+        if (hidden) setPenisModeEnabled(false)
+        ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
+            .edit { putBoolean("hide_novelty_mode", hidden) }
     }
 
     private val _penisModeEnabled = MutableStateFlow(false)
@@ -1437,7 +1444,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateLeaderboard() {
-        val uid = _userId.value ?: return
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        if (uid != _userId.value) return
         val updatedTime = _totalVisualizedTime.value
         if (updatedTime <= 0) return
 
@@ -1471,8 +1479,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveStatsLocally() {
         val prefs = ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
-        viewModelScope.launch(Dispatchers.IO) {
-            prefs.edit()
+        prefs.edit()
                 .putLong("total_visualized_time", _totalVisualizedTime.value)
                 .putLong("total_idle_time", _totalIdleTime.value)
                 .putLong("total_active_time", _totalActiveTime.value)
@@ -1480,7 +1487,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .putLong("total_haptic_time", _totalHapticTime.value)
                 .putLong("total_flashlight_time", _totalFlashlightTime.value)
                 .apply()
-        }
     }
 
     private fun nicknameForLeaderboard(name: String): String {
@@ -1689,7 +1695,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val _spoofLocale = MutableStateFlow<String?>(null)
     val spoofLocale = _spoofLocale.asStateFlow()
 
-    init {
+    private fun startObservers() {
         val prefs = ctx.getSharedPreferences("viz_prefs", Context.MODE_PRIVATE)
         _favoritePresets.value = prefs.getStringSet("favorite_presets", emptySet()) ?: emptySet()
         
@@ -1698,7 +1704,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiAmplitudeSyncEnabled.value = prefs.getBoolean("ui_amplitude_sync_enabled", true)
         _aodEnabled.value = prefs.getBoolean("aod_enabled", false)
         _bananaModeEnabled.value = prefs.getBoolean("banana_mode_enabled", false)
-        _penisModeEnabled.value = prefs.getBoolean("penis_mode_enabled", false)
+        _hideNoveltyMode.value = prefs.getBoolean("hide_novelty_mode", false)
+        _penisModeEnabled.value = !_hideNoveltyMode.value && prefs.getBoolean("penis_mode_enabled", false)
 
         _totalVisualizedTime.value = prefs.getLong("total_visualized_time", 0L)
         _totalIdleTime.value = prefs.getLong("total_idle_time", 0L)
@@ -1710,7 +1717,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _spoofLocale.value = prefs.getString("spoof_locale", null)
 
         val auth = FirebaseAuth.getInstance()
-        auth.addAuthStateListener { firebaseAuth ->
+        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
             if (user != null) {
                 _userId.value = user.uid
@@ -1734,6 +1741,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        authStateListener = listener
+        auth.addAuthStateListener(listener)
+
         if (auth.currentUser == null) {
             // Defer authing-in anonymously until after we've had a chance to
             // sign in with a real provider. This avoids race conditions where
@@ -1745,12 +1755,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (FirebaseAuth.getInstance().currentUser == null) {
                     auth.signInAnonymously().addOnFailureListener { e ->
                         Log.e("MainViewModel", "Firebase Auth failed", e)
-                        var uId = prefs.getString("user_id", null)
-                        if (uId == null) {
-                            uId = java.util.UUID.randomUUID().toString()
-                            prefs.edit().putString("user_id", uId).apply()
-                        }
-                        _userId.value = uId
+                        // Keep offline progress local until Firebase authenticates a real UID.
+                        // A fabricated UID cannot satisfy server-side ownership rules.
+                        _userId.value = null
                     }
                 }
             }
@@ -2462,7 +2469,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _fftRawState.value = floatArrayOf()
     }
 
-        init {
+    private fun restorePreferencesAndStartFft() {
         viewModelScope.launch(Dispatchers.Default) {
             fftState.collect { magnitude ->
                 val service = MainActivity.serviceStatic
@@ -2544,7 +2551,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _gammaValue.value = prefs.getFloat("gamma_value", 1.0f)
         _spectrumGain.value = prefs.getFloat("spectrum_gain", 1.0f)
         _maxBrightness.value = prefs.getInt("max_brightness", 4095)
-        _fftReadMethod.value = AudioProcessor.ReadMethod.valueOf(prefs.getString("fft_read_method", AudioProcessor.ReadMethod.MAX.name)!!)
+        _fftReadMethod.value = com.glyphix.app.util.PreferenceValues.enumOrDefault(AudioProcessor.ReadMethod::class.java, prefs.getString("fft_read_method", null), AudioProcessor.ReadMethod.MAX)
         _glyphsEnabled.value = prefs.getBoolean("glyphs_enabled", true)
         _selectedPreset.value = prefs.getString("selected_preset", "Default") ?: "Default"
         val autoPreset = prefs.getBoolean("auto_preset_enabled", false)
@@ -2579,7 +2586,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _notificationButtonSet.value = prefs.getString("notification_button_set", "presets") ?: "presets"
 
         _hapticMotorEnabled.value = prefs.getBoolean("haptic_motor_enabled", false)
-        _hapticMode.value = HapticMode.valueOf(prefs.getString("haptic_mode", HapticMode.BASS_TO_AMPLITUDE.name)!!)
+        _hapticMode.value = com.glyphix.app.util.PreferenceValues.enumOrDefault(HapticMode::class.java, prefs.getString("haptic_mode", null), HapticMode.BASS_TO_AMPLITUDE)
         _hapticFreqMin.value = prefs.getInt("haptic_freq_min", 20).toFloat()
         _hapticFreqMax.value = prefs.getInt("haptic_freq_max", 250).toFloat()
         _hapticMultiplier.value = prefs.getFloat("haptic_multiplier", 1.0f)
@@ -2589,7 +2596,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _hapticBeatGamma.value = prefs.getFloat("haptic_beat_gamma", 8.0f)
 
         _flashlightEnabled.value = prefs.getBoolean("flashlight_enabled", false)
-        _flashlightMode.value = TorchMode.valueOf(prefs.getString("flashlight_mode", TorchMode.AMPLITUDE.name)!!)
+        _flashlightMode.value = com.glyphix.app.util.PreferenceValues.enumOrDefault(TorchMode::class.java, prefs.getString("flashlight_mode", null), TorchMode.AMPLITUDE)
         _flashlightFreqMin.value = prefs.getInt("flashlight_freq_min", 20).toFloat()
         _flashlightFreqMax.value = prefs.getInt("flashlight_freq_max", 250).toFloat()
         _flashlightThreshold.value = prefs.getFloat("flashlight_threshold", 0.15f)
@@ -2643,7 +2650,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             DeviceProfile.DEVICE_NP2 -> "Nothing Phone (2)"
             DeviceProfile.DEVICE_NP2A -> "Nothing Phone (2a)"
             DeviceProfile.DEVICE_NP3A -> "Nothing Phone (3a)"
-            DeviceProfile.DEVICE_NP4APRO -> "Nothing Phone (3a) Pro"
+            DeviceProfile.DEVICE_NP3APRO -> "Nothing Phone (3a) Pro"
+            DeviceProfile.DEVICE_NP4APRO -> "Nothing Phone (4a) Pro"
             DeviceProfile.DEVICE_NP4A -> "Nothing Phone (4a)"
             DeviceProfile.DEVICE_NP3 -> "Nothing Phone (3)"
             DeviceProfile.DEVICE_NP4B -> "Nothing Phone (4b)"
@@ -2908,7 +2916,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        super.onCleared()
+        authStateListener?.let { FirebaseAuth.getInstance().removeAuthStateListener(it) }
+        authStateListener = null
         saveStatsLocally()
+        if (instance === this) instance = null
+        super.onCleared()
+    }
+
+    // All StateFlows must exist before listeners/coroutines can observe or mutate them.
+    init {
+        instance = this
+        restorePreferencesAndStartFft()
+        startObservers()
     }
 }

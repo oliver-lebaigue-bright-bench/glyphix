@@ -23,7 +23,7 @@ export interface SpectrumFrame {
 export class AudioAnalyzer {
   private analyser: AnalyserNode;
   private fftSize: number;
-  private frequencyData: Uint8Array;
+  private frequencyData: Uint8Array<ArrayBuffer>;
   private smoothedData: Float32Array;
   private smoothingFactor: number;
   private nyquistHz: number;
@@ -37,7 +37,7 @@ export class AudioAnalyzer {
     this.frequencyData = new Uint8Array(analyser.frequencyBinCount);
     this.smoothedData = new Float32Array(analyser.frequencyBinCount);
     this.smoothingFactor = smoothing;
-    this.nyquistHz = 48000 / 2; // Assume 48kHz sample rate
+    this.nyquistHz = analyser.context.sampleRate / 2;
     this.peakHistory = new Float32Array(analyser.frequencyBinCount);
     this.peakDecay = 0.992;
 

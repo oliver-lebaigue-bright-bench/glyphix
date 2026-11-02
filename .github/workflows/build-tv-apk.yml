@@ -1,0 +1,41 @@
+name: Build Android TV APK
+on:
+  push:
+    branches: ['codex/android-tv']
+    paths: ['tvApp/**', 'scripts/build-tv.sh', '.github/workflows/build-tv-apk.yml']
+  pull_request:
+    paths: ['tvApp/**', 'scripts/build-tv.sh', '.github/workflows/build-tv-apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-tv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .gradle/tv-toolchain
+            .gradle/tv-user
+            keystore-tv/debug.keystore
+          key: glyphix-tv-debug-v1-${{ runner.os }}
+      - name: Check audio analysis and flash limiter
+        run: |
+          mkdir -p tvApp/build/audio-core-tests
+          javac -d tvApp/build/audio-core-tests tvApp/src/main/java/com/glyphix/tv/FlashLimiter.java tvApp/src/main/java/com/glyphix/tv/SignalAnalyzer.java tvApp/tests/AudioCoreTest.java
+          java -cp tvApp/build/audio-core-tests AudioCoreTest
+      - name: Build and lint standalone TV app
+        run: bash scripts/build-tv.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glyphix-android-tv-debug-apk
+          path: tvApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
